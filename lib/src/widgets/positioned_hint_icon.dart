@@ -26,7 +26,7 @@ class PositionedHintIcon extends StatefulWidget {
     Key? key,
     this.position = IconPosition.center,
     this.color = Colors.amber, // Changed from white to amber
-    this.size = 32.0,
+    this.size = 40.0, // Increased from 32.0 to 40.0 for better visibility
     this.icon,
     this.imagePath,
     this.customWidget,
@@ -155,8 +155,9 @@ class _PositionedHintIconState extends State<PositionedHintIcon>
   Widget _buildIcon() {
     if (widget.customWidget != null) {
       return SizedBox(
-        width: widget.size * 0.6,
-        height: widget.size * 0.6,
+        width: widget.size *
+            0.75, // Increased from 0.6 to 0.75 for better visibility
+        height: widget.size * 0.75,
         child: widget.customWidget,
       );
     }
@@ -164,11 +165,24 @@ class _PositionedHintIconState extends State<PositionedHintIcon>
   }
 
   Widget _buildDefaultIcon() {
-    // Use the icon specified by the developer
-    return Icon(
-      widget.icon ?? Icons.touch_app, // Default to touch_app if not specified
-      color: widget.color,
-      size: widget.size * 0.6,
+    // Use the icon specified by the developer with enhanced visual effect
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: (widget.color ?? Colors.amber).withOpacity(0.3),
+            blurRadius: 8,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Icon(
+        widget.icon ?? Icons.touch_app, // Default to touch_app if not specified
+        color: widget.color,
+        size: widget.size *
+            0.75, // Increased from 0.6 to 0.75 for better visibility
+      ),
     );
   }
 }

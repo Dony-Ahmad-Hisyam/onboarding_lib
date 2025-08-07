@@ -13,7 +13,7 @@ class AnimatedHintIcon extends StatefulWidget {
     Key? key,
     required this.interactionType,
     this.color = Colors.white,
-    this.size = 32.0,
+    this.size = 40.0, // Increased from 32.0 to 40.0 for better visibility
     this.customIcon,
     this.imagePath,
     this.customIconWidget,
@@ -86,8 +86,9 @@ class _AnimatedHintIconState extends State<AnimatedHintIcon>
     // First priority: custom widget if provided
     if (widget.customIconWidget != null) {
       return SizedBox(
-        width: widget.size * 0.6,
-        height: widget.size * 0.6,
+        width: widget.size *
+            0.75, // Increased from 0.6 to 0.75 for better visibility
+        height: widget.size * 0.75,
         child: widget.customIconWidget,
       );
     }
@@ -97,8 +98,10 @@ class _AnimatedHintIconState extends State<AnimatedHintIcon>
       return Image.asset(
         widget.imagePath!,
         package: 'flutter_game_onboarding',
-        width: widget.size * 0.6,
-        height: widget.size * 0.6,
+        width: widget.size *
+            0.75, // Increased from 0.6 to 0.75 for better visibility
+        height: widget.size *
+            0.75, // Fixed: changed from 0.6 to 0.75 to match width
         color: widget.color,
         errorBuilder: (context, error, stackTrace) {
           print('Error loading image: $error');
@@ -118,7 +121,8 @@ class _AnimatedHintIconState extends State<AnimatedHintIcon>
               ? Icons.touch_app
               : Icons.swipe),
       color: widget.color,
-      size: widget.size * 0.6,
+      size: widget.size *
+          0.75, // Increased from 0.6 to 0.75 for better visibility
     );
   }
 }

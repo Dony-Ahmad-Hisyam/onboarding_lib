@@ -16,16 +16,19 @@ class _MathGameDemoState extends State<MathGameDemo> {
   final GlobalKey _mathProblemKey = GlobalKey(debugLabel: 'mathProblemKey');
   final GlobalKey _number3Key = GlobalKey(debugLabel: 'number3Key');
   final GlobalKey _emptyCircleKey = GlobalKey(debugLabel: 'emptyCircleKey');
+  final GlobalKey _onNextKey = GlobalKey(debugLabel: 'onNextKey');
 
   @override
   void initState() {
     super.initState();
     _initOnboarding();
 
-    // Start onboarding after a short delay to ensure widgets are laid out
+    // Start onboarding after a longer delay to ensure all widgets are properly laid out
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        _onboardingController.start();
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (mounted) {
+          _onboardingController.start();
+        }
       });
     });
   }
@@ -37,34 +40,47 @@ class _MathGameDemoState extends State<MathGameDemo> {
         targetKey: _gameSelectionKey,
         title: 'Choose a Mini-game',
         description:
-            'Tap on a game to start playing and learning math concepts.',
+            'Tap on this game selector to start playing and learning math concepts. This is your first step!',
         interactionType: InteractionType.tap,
         hintIcon: Icons.touch_app,
         hintIconColor: Colors.amber,
-        position: TooltipPosition.bottom,
-        iconPosition: IconPosition.topRight,
+        position: TooltipPosition.auto, // Let it auto-position
+        iconPosition: IconPosition.center, // Center the icon
       ),
       OnboardingStep(
         id: 'math_problem',
         targetKey: _mathProblemKey,
         title: 'Play, Learn and Earn Coins',
         description:
-            'Solve math problems to earn coins and progress through the levels.',
+            'This section shows your current math problem. Solve math problems to earn coins and progress through the levels.',
         interactionType: InteractionType.tap,
         hintIcon: Icons.touch_app,
         hintIconColor: Colors.amber,
-        position: TooltipPosition.bottom,
-        iconPosition: IconPosition.bottomLeft,
+        position: TooltipPosition.auto, // Let it auto-position
+        iconPosition: IconPosition.center,
       ),
       OnboardingStep(
         id: 'drag_number',
         targetKey: _number3Key,
         destinationKey: _emptyCircleKey,
         title: 'Drag the Number',
-        description: 'Drag',
+        description:
+            'Drag the number "3" from here to the empty circle to complete the math equation 7 + 3 = 10',
         interactionType: InteractionType.dragDrop,
         hintIconColor: Colors.greenAccent,
-        position: TooltipPosition.right,
+        position: TooltipPosition.auto, // Let it auto-position
+        iconPosition: IconPosition.center,
+      ),
+      OnboardingStep(
+        id: 'on_next',
+        targetKey: _onNextKey,
+        title: 'Next Steps',
+        description:
+            'Tap on the "Next" button to move to the next math problem and continue your learning journey.',
+        interactionType: InteractionType.tap,
+        hintIcon: Icons.touch_app,
+        hintIconColor: Colors.amber,
+        position: TooltipPosition.auto, // Let it auto-position
         iconPosition: IconPosition.center,
       ),
     ];
@@ -72,14 +88,18 @@ class _MathGameDemoState extends State<MathGameDemo> {
     _onboardingController = OnboardingController(
       config: OnboardingConfig(
         steps: steps,
+        overlayColor: Colors.black,
+        overlayOpacity: 0.7, // Make overlay more visible
+        targetPadding: 8.0, // Add some padding around target
         tooltipConfig: const TooltipConfig(
           backgroundColor: Color(0xFF6750A4),
           textColor: Colors.white,
-          maxWidth: 300,
+          maxWidth: 320, // Increased max width
+          padding: EdgeInsets.all(16),
         ),
         onComplete: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Onboarding completed!')),
+            const SnackBar(content: Text('Onboarding completed! Great job!')),
           );
         },
       ),
@@ -318,6 +338,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
             child: const Text('Back'),
           ),
           ElevatedButton(
+            key: _onNextKey,
             onPressed: () {
               // Next button functionality
               ScaffoldMessenger.of(context).showSnackBar(

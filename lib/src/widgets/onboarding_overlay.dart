@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import '../controllers/onboarding_controller.dart';
 import '../models/onboarding_step.dart';
 import 'onboarding_tooltip.dart';
-import '../utils/position_utils.dart';
 import 'positioned_hint_icon.dart';
-import 'dart:ui' as ui;
 
 class OnboardingOverlay extends StatefulWidget {
   final OnboardingController controller;
@@ -60,11 +58,32 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
   void _handleControllerUpdate() {
     if (widget.controller.isVisible) {
       _animationController.forward();
-      _updateDragPositions();
-      _setupDragAnimation();
+
+      // Clean up previous drag state when switching steps
+      if (widget.controller.currentStep.interactionType !=
+          InteractionType.dragDrop) {
+        _dragAnimationController?.stop();
+        _dragAnimationController?.reset();
+        setState(() {
+          _dragOffset = null;
+          _isUserDragging = false;
+          _dragStartPosition = null;
+          _dragDestination = null;
+        });
+      } else {
+        _updateDragPositions();
+        _setupDragAnimation();
+      }
     } else {
       _animationController.reverse();
       _dragAnimationController?.stop();
+      _dragAnimationController?.reset();
+      setState(() {
+        _dragOffset = null;
+        _isUserDragging = false;
+        _dragStartPosition = null;
+        _dragDestination = null;
+      });
     }
 
     if (mounted) {
@@ -122,7 +141,11 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             if (_dragAnimationController != null &&
                 mounted &&
                 !_isUserDragging &&
-                widget.controller.isVisible) {
+                widget.controller.isVisible &&
+                widget.controller.currentStep.interactionType ==
+                    InteractionType.dragDrop &&
+                widget.controller.currentStep.id == step.id) {
+              // Check if still on same step
               _dragAnimationController!.reset();
               _dragAnimationController!.forward();
             }
@@ -156,7 +179,9 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
           if (widget.controller.isVisible &&
               widget.controller.currentStep.interactionType ==
                   InteractionType.dragDrop &&
-              !_isUserDragging)
+              !_isUserDragging &&
+              _dragAnimationController != null &&
+              !_dragAnimationController!.isDismissed)
             _buildDragAnimation(),
 
           if (_dragOffset != null) _buildUserDragElement(),
@@ -208,8 +233,11 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               child: Center(
                 child: step.customIconWidget != null
                     ? SizedBox(
-                        width: sourceSize.width * 0.5,
-                        height: sourceSize.height * 0.5,
+                        width: math.max(
+                            24.0,
+                            sourceSize.width *
+                                0.6), // Increased from 0.5 to 0.6 with minimum 24px
+                        height: math.max(24.0, sourceSize.height * 0.6),
                         child: step.customIconWidget,
                       )
                     : (step.hintImagePath != null
@@ -217,18 +245,21 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                             step.hintImagePath!,
                             package: 'onboarding_lib',
                             color: step.hintIconColor ?? Colors.white,
-                            width: sourceSize.width * 0.5,
-                            height: sourceSize.height * 0.5,
+                            width: math.max(24.0, sourceSize.width * 0.6),
+                            height: math.max(24.0, sourceSize.height * 0.6),
                             errorBuilder: (ctx, error, _) => Icon(
                               step.hintIcon ?? Icons.touch_app,
                               color: step.hintIconColor ?? Colors.white,
-                              size: sourceSize.width * 0.5,
+                              size: math.max(24.0, sourceSize.width * 0.6),
                             ),
                           )
                         : Icon(
                             step.hintIcon ?? Icons.touch_app,
                             color: step.hintIconColor ?? Colors.white,
-                            size: sourceSize.width * 0.5,
+                            size: math.max(
+                                24.0,
+                                sourceSize.width *
+                                    0.6), // Increased from 0.5 to 0.6 with minimum 24px
                           )),
               ),
             ),
@@ -244,24 +275,27 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     final currentStep = widget.controller.currentStep;
 
     return RepaintBoundary(
-      child: CustomPaint(
-        size: Size(MediaQuery.of(context).size.width,
-            MediaQuery.of(context).size.height),
-        painter: CleanCorridorPainter(
-          sourceKey: currentStep.targetKey,
-          destinationKey:
-              currentStep.interactionType == InteractionType.dragDrop
-                  ? currentStep.destinationKey
-                  : null,
-          padding: config.targetPadding,
-          overlayColor: config.overlayColor
-              .withOpacity(_fadeAnimation.value * config.overlayOpacity),
-          corridorWidth: 60.0, // Reduced corridor width
-          borderColor:
-              currentStep.hintIconColor ?? Colors.red, // Changed to red
-          borderWidth: 2.5,
-          cornerRadius: 20.0, // Rounded corners radius
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return CustomPaint(
+            size: Size(constraints.maxWidth, constraints.maxHeight),
+            painter: CleanCorridorPainter(
+              sourceKey: currentStep.targetKey,
+              destinationKey:
+                  currentStep.interactionType == InteractionType.dragDrop
+                      ? currentStep.destinationKey
+                      : null,
+              padding: config.targetPadding,
+              overlayColor: config.overlayColor
+                  .withOpacity(_fadeAnimation.value * config.overlayOpacity),
+              corridorWidth: 60.0, // Reduced corridor width
+              borderColor: currentStep.hintIconColor ??
+                  Colors.amber, // Changed to amber for better visibility
+              borderWidth: 3.0, // Increased border width
+              cornerRadius: 20.0, // Rounded corners radius
+            ),
+          );
+        },
       ),
     );
   }
@@ -343,6 +377,13 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                   if (_dragOffset != null && destRect.contains(_dragOffset!)) {
                     // Successfully dragged to destination
                     success = true;
+                    // Clean up drag state immediately
+                    setState(() {
+                      _dragOffset = null;
+                      _isUserDragging = false;
+                      _dragAnimationController?.stop();
+                      _dragAnimationController?.reset();
+                    });
                     // Go to the next step after successful drag
                     Future.delayed(const Duration(milliseconds: 300), () {
                       widget.controller.nextStep();
@@ -350,13 +391,14 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                   } else {
                     success = widget.controller
                         .completeDrag(_dragOffset ?? Offset.zero);
-                  }
 
-                  if (!success) {
+                    // Clean up drag state regardless of success
                     setState(() {
                       _dragOffset = null;
                       _isUserDragging = false;
-                      _dragAnimationController?.forward();
+                      if (!success) {
+                        _dragAnimationController?.forward();
+                      }
                     });
                   }
                 }
@@ -375,8 +417,10 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                       Icon(
                         step.hintIcon ?? Icons.touch_app,
                         color: step.hintIconColor ?? Colors.white,
-                        size:
-                            math.min(sourceSize.width, sourceSize.height) * 0.5,
+                        size: math.max(
+                            32.0,
+                            math.min(sourceSize.width, sourceSize.height) *
+                                0.7), // Increased from 0.5 to 0.7 with minimum 32px
                       ),
                 ),
               ),
@@ -395,7 +439,10 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                 child: Icon(
                   Icons.add_circle_outline,
                   color: step.hintIconColor ?? Colors.white,
-                  size: math.min(destSize.width, destSize.height) * 0.5,
+                  size: math.max(
+                      28.0,
+                      math.min(destSize.width, destSize.height) *
+                          0.6), // Increased from 0.5 to 0.6 with minimum 28px
                 ),
               ),
             ),
@@ -452,7 +499,10 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             child: PositionedHintIcon(
               position: step.iconPosition,
               color: step.hintIconColor ?? Colors.white,
-              size: math.min(size.width, size.height) * 0.6,
+              size: math.max(
+                  40.0,
+                  math.min(size.width, size.height) *
+                      0.8), // Increased from 0.6 to 0.8 with minimum 40px
               icon: step.hintIcon ?? Icons.touch_app,
               imagePath: step.hintImagePath,
               customWidget: step.customIconWidget,
@@ -550,7 +600,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
       targetPosition.dy + targetSize.height / 2,
     );
 
-    // Available areas
+    // Available areas with more precise calculations
     final double leftSpace = targetPosition.dx - margin;
     final double rightSpace =
         screenSize.width - (targetPosition.dx + targetSize.width) - margin;
@@ -563,45 +613,101 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     double tooltipX = 0;
     double tooltipY = 0;
 
-    // Priority order: bottom, top, right, left
-    if (bottomSpace >= tooltipSize.height + spacing) {
-      // Position below target
-      tooltipY = targetPosition.dy + targetSize.height + spacing;
-      tooltipX = _calculateHorizontalPosition(
-          targetCenter.dx, tooltipSize.width, screenSize.width, margin);
-    } else if (topSpace >= tooltipSize.height + spacing) {
-      // Position above target
-      tooltipY = targetPosition.dy - tooltipSize.height - spacing;
-      tooltipX = _calculateHorizontalPosition(
-          targetCenter.dx, tooltipSize.width, screenSize.width, margin);
-    } else if (rightSpace >= tooltipSize.width + spacing) {
-      // Position to the right
-      tooltipX = targetPosition.dx + targetSize.width + spacing;
-      tooltipY = _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
-          screenSize.height, safeArea, margin);
-    } else if (leftSpace >= tooltipSize.width + spacing) {
-      // Position to the left
-      tooltipX = targetPosition.dx - tooltipSize.width - spacing;
-      tooltipY = _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
-          screenSize.height, safeArea, margin);
-    } else {
-      // Fallback: position in available space with scrolling
-      if (bottomSpace > topSpace) {
-        tooltipY = targetPosition.dy + targetSize.height + spacing;
-      } else {
-        tooltipY = math.max(safeArea.top + margin,
-            targetPosition.dy - tooltipSize.height - spacing);
-      }
+    // Determine best position based on available space and step preference
+    TooltipPosition preferredPosition = step.position;
 
-      tooltipX = _calculateHorizontalPosition(
-          targetCenter.dx, tooltipSize.width, screenSize.width, margin);
+    // Override preferred position if not enough space
+    if (preferredPosition == TooltipPosition.bottom &&
+        bottomSpace < tooltipSize.height + spacing) {
+      if (topSpace >= tooltipSize.height + spacing) {
+        preferredPosition = TooltipPosition.top;
+      } else if (rightSpace >= tooltipSize.width + spacing) {
+        preferredPosition = TooltipPosition.right;
+      } else if (leftSpace >= tooltipSize.width + spacing) {
+        preferredPosition = TooltipPosition.left;
+      }
+    } else if (preferredPosition == TooltipPosition.top &&
+        topSpace < tooltipSize.height + spacing) {
+      if (bottomSpace >= tooltipSize.height + spacing) {
+        preferredPosition = TooltipPosition.bottom;
+      } else if (rightSpace >= tooltipSize.width + spacing) {
+        preferredPosition = TooltipPosition.right;
+      } else if (leftSpace >= tooltipSize.width + spacing) {
+        preferredPosition = TooltipPosition.left;
+      }
+    } else if (preferredPosition == TooltipPosition.right &&
+        rightSpace < tooltipSize.width + spacing) {
+      if (leftSpace >= tooltipSize.width + spacing) {
+        preferredPosition = TooltipPosition.left;
+      } else if (bottomSpace >= tooltipSize.height + spacing) {
+        preferredPosition = TooltipPosition.bottom;
+      } else if (topSpace >= tooltipSize.height + spacing) {
+        preferredPosition = TooltipPosition.top;
+      }
+    } else if (preferredPosition == TooltipPosition.left &&
+        leftSpace < tooltipSize.width + spacing) {
+      if (rightSpace >= tooltipSize.width + spacing) {
+        preferredPosition = TooltipPosition.right;
+      } else if (bottomSpace >= tooltipSize.height + spacing) {
+        preferredPosition = TooltipPosition.bottom;
+      } else if (topSpace >= tooltipSize.height + spacing) {
+        preferredPosition = TooltipPosition.top;
+      }
     }
 
-    // Ensure tooltip stays within screen bounds
-    tooltipX =
-        tooltipX.clamp(margin, screenSize.width - tooltipSize.width - margin);
-    tooltipY = tooltipY.clamp(safeArea.top + margin,
-        screenSize.height - safeArea.bottom - tooltipSize.height - margin);
+    // Position based on determined optimal position
+    switch (preferredPosition) {
+      case TooltipPosition.bottom:
+        tooltipY = targetPosition.dy + targetSize.height + spacing;
+        tooltipX = _calculateHorizontalPosition(
+            targetCenter.dx, tooltipSize.width, screenSize.width, margin);
+        break;
+      case TooltipPosition.top:
+        tooltipY = targetPosition.dy - tooltipSize.height - spacing;
+        tooltipX = _calculateHorizontalPosition(
+            targetCenter.dx, tooltipSize.width, screenSize.width, margin);
+        break;
+      case TooltipPosition.right:
+        tooltipX = targetPosition.dx + targetSize.width + spacing;
+        tooltipY = _calculateVerticalPosition(targetCenter.dy,
+            tooltipSize.height, screenSize.height, safeArea, margin);
+        break;
+      case TooltipPosition.left:
+        tooltipX = targetPosition.dx - tooltipSize.width - spacing;
+        tooltipY = _calculateVerticalPosition(targetCenter.dy,
+            tooltipSize.height, screenSize.height, safeArea, margin);
+        break;
+      case TooltipPosition.auto:
+        // Auto positioning - choose the best available space
+        if (bottomSpace >= tooltipSize.height + spacing) {
+          tooltipY = targetPosition.dy + targetSize.height + spacing;
+          tooltipX = _calculateHorizontalPosition(
+              targetCenter.dx, tooltipSize.width, screenSize.width, margin);
+        } else if (topSpace >= tooltipSize.height + spacing) {
+          tooltipY = targetPosition.dy - tooltipSize.height - spacing;
+          tooltipX = _calculateHorizontalPosition(
+              targetCenter.dx, tooltipSize.width, screenSize.width, margin);
+        } else if (rightSpace >= tooltipSize.width + spacing) {
+          tooltipX = targetPosition.dx + targetSize.width + spacing;
+          tooltipY = _calculateVerticalPosition(targetCenter.dy,
+              tooltipSize.height, screenSize.height, safeArea, margin);
+        } else {
+          tooltipX = targetPosition.dx - tooltipSize.width - spacing;
+          tooltipY = _calculateVerticalPosition(targetCenter.dy,
+              tooltipSize.height, screenSize.height, safeArea, margin);
+        }
+        break;
+    }
+
+    // Ensure tooltip stays within screen bounds with more robust clamping
+    final double minX = margin;
+    final double maxX = screenSize.width - tooltipSize.width - margin;
+    final double minY = safeArea.top + margin;
+    final double maxY =
+        screenSize.height - safeArea.bottom - tooltipSize.height - margin;
+
+    tooltipX = tooltipX.clamp(minX, maxX.isNaN ? minX : maxX);
+    tooltipY = tooltipY.clamp(minY, maxY.isNaN ? minY : maxY);
 
     return Offset(tooltipX, tooltipY);
   }
@@ -638,10 +744,19 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     required Offset tooltipPosition,
     required Size screenSize,
   }) {
-    if (tooltipPosition.dy > targetPosition.dy) {
+    // Determine relative position of tooltip to target
+    final double tolerance = 20.0; // Tolerance for position determination
+
+    if (tooltipPosition.dy > targetPosition.dy + tolerance) {
       return TooltipPosition.bottom;
-    } else {
+    } else if (tooltipPosition.dy < targetPosition.dy - tolerance) {
       return TooltipPosition.top;
+    } else if (tooltipPosition.dx > targetPosition.dx + tolerance) {
+      return TooltipPosition.right;
+    } else if (tooltipPosition.dx < targetPosition.dx - tolerance) {
+      return TooltipPosition.left;
+    } else {
+      return TooltipPosition.auto;
     }
   }
 
@@ -677,8 +792,11 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             child: Center(
               child: step.customIconWidget != null
                   ? SizedBox(
-                      width: targetSize.width * 0.5,
-                      height: targetSize.height * 0.5,
+                      width: math.max(
+                          24.0,
+                          targetSize.width *
+                              0.6), // Increased from 0.5 to 0.6 with minimum 24px
+                      height: math.max(24.0, targetSize.height * 0.6),
                       child: step.customIconWidget,
                     )
                   : (step.hintImagePath != null
@@ -686,18 +804,21 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                           step.hintImagePath!,
                           package: 'onboarding_lib',
                           color: step.hintIconColor ?? Colors.white,
-                          width: targetSize.width * 0.5,
-                          height: targetSize.height * 0.5,
+                          width: math.max(24.0, targetSize.width * 0.6),
+                          height: math.max(24.0, targetSize.height * 0.6),
                           errorBuilder: (ctx, error, _) => Icon(
                             step.hintIcon ?? Icons.touch_app,
                             color: step.hintIconColor ?? Colors.white,
-                            size: targetSize.width * 0.5,
+                            size: math.max(24.0, targetSize.width * 0.6),
                           ),
                         )
                       : Icon(
                           step.hintIcon ?? Icons.touch_app,
                           color: step.hintIconColor ?? Colors.white,
-                          size: targetSize.width * 0.5,
+                          size: math.max(
+                              24.0,
+                              targetSize.width *
+                                  0.6), // Increased from 0.5 to 0.6 with minimum 24px
                         )),
             ),
           ),
@@ -730,6 +851,9 @@ class CleanCorridorPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Early return if size is invalid
+    if (size.width <= 0 || size.height <= 0) return;
+
     // For single target (tap interaction)
     if (destinationKey == null) {
       _paintSingleTarget(canvas, size);
@@ -741,12 +865,19 @@ class CleanCorridorPainter extends CustomPainter {
   }
 
   void _paintSingleTarget(Canvas canvas, Size size) {
-    // Get the source target box
+    // Get the source target box with additional null checks
+    final context = sourceKey.currentContext;
+    if (context == null) return;
+
+    final RenderObject? renderObject = context.findRenderObject();
+    if (renderObject == null || !renderObject.attached) return;
+
     final RenderBox? sourceBox =
-        sourceKey.currentContext?.findRenderObject() as RenderBox?;
-    if (sourceBox == null) return;
+        renderObject is RenderBox ? renderObject : null;
+    if (sourceBox == null || !sourceBox.hasSize) return;
 
     final sourcePos = sourceBox.localToGlobal(Offset.zero);
+
     final sourceRect = Rect.fromLTWH(
       sourcePos.dx - padding,
       sourcePos.dy - padding,
@@ -754,16 +885,26 @@ class CleanCorridorPainter extends CustomPainter {
       sourceBox.size.height + (padding * 2),
     );
 
+    // Ensure the source rect is within screen bounds
+    final screenRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final clampedSourceRect = Rect.fromLTWH(
+      sourceRect.left.clamp(0, size.width),
+      sourceRect.top.clamp(0, size.height),
+      (sourceRect.width)
+          .clamp(0, size.width - sourceRect.left.clamp(0, size.width)),
+      (sourceRect.height)
+          .clamp(0, size.height - sourceRect.top.clamp(0, size.height)),
+    );
+
     // Create a rounded rect path for the target
     final targetPath = Path()
       ..addRRect(RRect.fromRectAndRadius(
-        sourceRect,
+        clampedSourceRect,
         Radius.circular(cornerRadius),
       ));
 
     // Create a full screen path
-    final fullScreenPath = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final fullScreenPath = Path()..addRect(screenRect);
 
     // Create a path that represents the darkened overlay area
     final overlayPath = Path.combine(
@@ -786,19 +927,35 @@ class CleanCorridorPainter extends CustomPainter {
       ..strokeWidth = borderWidth;
 
     canvas.drawRRect(
-      RRect.fromRectAndRadius(sourceRect, Radius.circular(cornerRadius)),
+      RRect.fromRectAndRadius(clampedSourceRect, Radius.circular(cornerRadius)),
       borderPaint,
     );
   }
 
   void _paintDragPathCorridor(Canvas canvas, Size size) {
-    // Get source and destination boxes
-    final RenderBox? sourceBox =
-        sourceKey.currentContext?.findRenderObject() as RenderBox?;
-    final RenderBox? destBox =
-        destinationKey?.currentContext?.findRenderObject() as RenderBox?;
+    // Get source and destination boxes with better null checks
+    final sourceContext = sourceKey.currentContext;
+    final destContext = destinationKey?.currentContext;
 
-    if (sourceBox == null || destBox == null) return;
+    if (sourceContext == null || destContext == null) return;
+
+    final sourceRenderObject = sourceContext.findRenderObject();
+    final destRenderObject = destContext.findRenderObject();
+
+    if (sourceRenderObject == null ||
+        destRenderObject == null ||
+        !sourceRenderObject.attached ||
+        !destRenderObject.attached) return;
+
+    final RenderBox? sourceBox =
+        sourceRenderObject is RenderBox ? sourceRenderObject : null;
+    final RenderBox? destBox =
+        destRenderObject is RenderBox ? destRenderObject : null;
+
+    if (sourceBox == null ||
+        destBox == null ||
+        !sourceBox.hasSize ||
+        !destBox.hasSize) return;
 
     final sourcePos = sourceBox.localToGlobal(Offset.zero);
     final sourceSize = sourceBox.size;
