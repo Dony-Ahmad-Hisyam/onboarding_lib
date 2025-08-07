@@ -1,0 +1,22 @@
+name: onboarding_lib
+description: A custom Flutter library for creating beautiful onboarding experiences with floating hand gestures and widget highlighting.
+version: 1.0.0
+homepage: ../onboarding_lib
+
+environment:
+  sdk: ">=2.17.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  font_awesome_flutter: ^10.7.0
+
+flutter:
+  assets:
+    - assets/
+    - assets/click.png
