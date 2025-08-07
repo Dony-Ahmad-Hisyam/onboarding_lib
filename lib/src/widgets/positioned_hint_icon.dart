@@ -10,6 +10,7 @@ enum IconPosition {
   bottomCenter,
   centerLeft,
   centerRight,
+  fingerpoint, // Added new position type for finger pointing
 }
 
 class PositionedHintIcon extends StatefulWidget {
@@ -24,7 +25,7 @@ class PositionedHintIcon extends StatefulWidget {
   const PositionedHintIcon({
     Key? key,
     this.position = IconPosition.center,
-    this.color = Colors.white,
+    this.color = Colors.amber, // Changed from white to amber
     this.size = 32.0,
     this.icon,
     this.imagePath,
@@ -50,14 +51,15 @@ class _PositionedHintIconState extends State<PositionedHintIcon>
       vsync: this,
     )..repeat(reverse: true);
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
+      // Smaller animation range
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeInOut,
       ),
     );
 
-    _opacityAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+    _opacityAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeInOut,
@@ -85,7 +87,7 @@ class _PositionedHintIconState extends State<PositionedHintIcon>
   }
 
   Widget _buildPositionedIcon() {
-    // Menentukan alignment berdasarkan posisi yang dipilih
+    // Standard positions
     Alignment alignment;
     switch (widget.position) {
       case IconPosition.topLeft:
@@ -151,7 +153,6 @@ class _PositionedHintIconState extends State<PositionedHintIcon>
   }
 
   Widget _buildIcon() {
-    // Prioritas: 1) Widget kustom, 2) Gambar, 3) Icon
     if (widget.customWidget != null) {
       return SizedBox(
         width: widget.size * 0.6,
@@ -159,27 +160,13 @@ class _PositionedHintIconState extends State<PositionedHintIcon>
         child: widget.customWidget,
       );
     }
-
-    if (widget.imagePath != null) {
-      return Image.asset(
-        widget.imagePath!,
-        package: 'onboarding_lib', // Sesuaikan dengan nama package Anda
-        width: widget.size * 0.6,
-        height: widget.size * 0.6,
-        color: widget.color,
-        errorBuilder: (context, error, stackTrace) {
-          print('Error loading image: $error');
-          return _buildDefaultIcon();
-        },
-      );
-    }
-
     return _buildDefaultIcon();
   }
 
   Widget _buildDefaultIcon() {
+    // Use the icon specified by the developer
     return Icon(
-      widget.icon ?? Icons.touch_app,
+      widget.icon ?? Icons.touch_app, // Default to touch_app if not specified
       color: widget.color,
       size: widget.size * 0.6,
     );

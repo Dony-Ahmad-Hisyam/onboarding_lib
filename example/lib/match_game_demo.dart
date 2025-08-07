@@ -39,7 +39,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
         description:
             'Tap on a game to start playing and learning math concepts.',
         interactionType: InteractionType.tap,
-        hintImagePath: PackageAssets.logo,
+        hintIcon: Icons.touch_app,
         hintIconColor: Colors.amber,
         position: TooltipPosition.bottom,
         iconPosition: IconPosition.topRight,
@@ -61,11 +61,10 @@ class _MathGameDemoState extends State<MathGameDemo> {
         targetKey: _number3Key,
         destinationKey: _emptyCircleKey,
         title: 'Drag the Number',
-        description:
-            'Drag the correct answer to the empty circle to complete the equation.',
+        description: 'Drag',
         interactionType: InteractionType.dragDrop,
         hintIconColor: Colors.greenAccent,
-        position: TooltipPosition.bottom,
+        position: TooltipPosition.right,
         iconPosition: IconPosition.center,
       ),
     ];
@@ -123,7 +122,6 @@ class _MathGameDemoState extends State<MathGameDemo> {
 
   Widget _buildGameSelection() {
     return Container(
-      key: _gameSelectionKey,
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -142,6 +140,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
                 ),
                 const SizedBox(height: 8),
                 Container(
+                  key: _gameSelectionKey,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.brown.shade300,
@@ -166,7 +165,6 @@ class _MathGameDemoState extends State<MathGameDemo> {
 
   Widget _buildMathGame() {
     return Container(
-      key: _mathProblemKey,
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.blue.shade100,
@@ -176,6 +174,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
+            key: _mathProblemKey,
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

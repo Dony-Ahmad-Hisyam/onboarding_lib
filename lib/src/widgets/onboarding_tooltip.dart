@@ -8,11 +8,11 @@ class OnboardingTooltip extends StatelessWidget {
   final TooltipPosition position;
 
   const OnboardingTooltip({
-    Key? key,
+    super.key,
     required this.controller,
     required this.step,
     required this.position,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,52 +21,134 @@ class OnboardingTooltip extends StatelessWidget {
     }
 
     final config = controller.config.tooltipConfig;
-    final arrowSize = 10.0;
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: config.maxWidth),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (position == TooltipPosition.bottom) _buildArrow(true),
-          Container(
-            padding: config.padding,
-            decoration: BoxDecoration(
-              color: config.backgroundColor,
-              borderRadius: BorderRadius.circular(config.borderRadius),
-            ),
+    // Calculate responsive max width with padding
+    final horizontalPadding = 32.0; // 16px on each side
+    final maxWidth =
+        (screenWidth - horizontalPadding).clamp(200.0, config.maxWidth);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          width: double.infinity,
+          constraints: BoxConstraints(
+            maxWidth: maxWidth,
+            maxHeight: screenHeight * 0.7, // Max 70% of screen height
+          ),
+          child: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  step.title,
-                  style: config.titleStyle ??
-                      TextStyle(
-                        color: config.textColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                if (position == TooltipPosition.bottom) _buildArrow(true),
+                Container(
+                  width: double.infinity,
+                  padding: _getResponsivePadding(screenWidth, config.padding),
+                  decoration: BoxDecoration(
+                    color: config.backgroundColor,
+                    borderRadius: BorderRadius.circular(config.borderRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  step.description,
-                  style: config.descriptionStyle ??
-                      TextStyle(
-                        color: config.textColor,
-                        fontSize: 14,
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        step.title,
+                        style: _getResponsiveTitleStyle(screenWidth, config),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      SizedBox(height: _getResponsiveSpacing(screenWidth, 8)),
+                      Text(
+                        step.description,
+                        style:
+                            _getResponsiveDescriptionStyle(screenWidth, config),
+                        maxLines: 8,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: _getResponsiveSpacing(screenWidth, 16)),
+                      _buildButtons(screenWidth),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                _buildButtons(),
+                if (position == TooltipPosition.top) _buildArrow(false),
               ],
             ),
           ),
-          if (position == TooltipPosition.top) _buildArrow(false),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  EdgeInsets _getResponsivePadding(
+      double screenWidth, EdgeInsets defaultPadding) {
+    if (screenWidth < 360) {
+      // Small phones
+      return const EdgeInsets.all(12);
+    } else if (screenWidth < 400) {
+      // Medium phones
+      return const EdgeInsets.all(16);
+    } else {
+      // Large phones and tablets
+      return defaultPadding;
+    }
+  }
+
+  TextStyle _getResponsiveTitleStyle(double screenWidth, dynamic config) {
+    double fontSize;
+    if (screenWidth < 360) {
+      fontSize = 16;
+    } else if (screenWidth < 400) {
+      fontSize = 17;
+    } else {
+      fontSize = 18;
+    }
+
+    return config.titleStyle ??
+        TextStyle(
+          color: config.textColor,
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          height: 1.2,
+        );
+  }
+
+  TextStyle _getResponsiveDescriptionStyle(double screenWidth, dynamic config) {
+    double fontSize;
+    if (screenWidth < 360) {
+      fontSize = 12;
+    } else if (screenWidth < 400) {
+      fontSize = 13;
+    } else {
+      fontSize = 14;
+    }
+
+    return config.descriptionStyle ??
+        TextStyle(
+          color: config.textColor,
+          fontSize: fontSize,
+          height: 1.4,
+        );
+  }
+
+  double _getResponsiveSpacing(double screenWidth, double defaultSpacing) {
+    if (screenWidth < 360) {
+      return defaultSpacing * 0.75;
+    } else if (screenWidth < 400) {
+      return defaultSpacing * 0.875;
+    } else {
+      return defaultSpacing;
+    }
   }
 
   Widget _buildArrow(bool pointingUp) {
@@ -82,28 +164,54 @@ class OnboardingTooltip extends StatelessWidget {
     );
   }
 
-  Widget _buildButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+  Widget _buildButtons(double screenWidth) {
+    final isSmallScreen = screenWidth < 360;
+
+    return Flex(
+      direction: isSmallScreen ? Axis.vertical : Axis.horizontal,
+      mainAxisAlignment:
+          isSmallScreen ? MainAxisAlignment.center : MainAxisAlignment.end,
       children: [
         if (step.canSkip)
-          TextButton(
-            onPressed: controller.skip,
-            style: TextButton.styleFrom(
-              foregroundColor: controller.config.tooltipConfig.textColor.withOpacity(0.7),
+          SizedBox(
+            width: isSmallScreen ? double.infinity : null,
+            child: TextButton(
+              onPressed: controller.skip,
+              style: TextButton.styleFrom(
+                foregroundColor:
+                    controller.config.tooltipConfig.textColor.withOpacity(0.7),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 16 : 12,
+                  vertical: 8,
+                ),
+              ),
+              child: const Text('Skip'),
             ),
-            child: const Text('Skip'),
           ),
-        const SizedBox(width: 8),
-        TextButton(
-          onPressed: controller.nextStep,
-          style: TextButton.styleFrom(
-            foregroundColor: controller.config.tooltipConfig.textColor,
-          ),
-          child: Text(
-            controller.currentStepIndex >= controller.config.steps.length - 1
-                ? 'Finish'
-                : 'Next',
+        if (!isSmallScreen && step.canSkip) const SizedBox(width: 8),
+        if (isSmallScreen && step.canSkip) const SizedBox(height: 8),
+        SizedBox(
+          width: isSmallScreen ? double.infinity : null,
+          child: TextButton(
+            onPressed: controller.nextStep,
+            style: TextButton.styleFrom(
+              foregroundColor: controller.config.tooltipConfig.textColor,
+              backgroundColor:
+                  controller.config.tooltipConfig.textColor.withOpacity(0.1),
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 16 : 12,
+                vertical: 8,
+              ),
+            ),
+            child: Text(
+              controller.currentStepIndex >= controller.config.steps.length - 1
+                  ? 'Finish'
+                  : 'Next',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: isSmallScreen ? 14 : 16,
+              ),
+            ),
           ),
         ),
       ],
