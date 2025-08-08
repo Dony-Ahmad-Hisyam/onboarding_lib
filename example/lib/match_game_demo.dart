@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:onboarding_lib/onboarding_lib.dart';
+import 'widgets/number_widgets.dart';
 
 class MathGameDemo extends StatefulWidget {
   const MathGameDemo({Key? key}) : super(key: key);
@@ -11,33 +12,34 @@ class MathGameDemo extends StatefulWidget {
 class _MathGameDemoState extends State<MathGameDemo> {
   late OnboardingController _onboardingController;
 
-  // Define GlobalKeys as final fields
+  // Tap targets
   final GlobalKey _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
   final GlobalKey _mathProblemKey = GlobalKey(debugLabel: 'mathProblemKey');
-  final GlobalKey _number3Key = GlobalKey(debugLabel: 'number3Key');
-  final GlobalKey _emptyCircleKey = GlobalKey(debugLabel: 'emptyCircleKey');
   final GlobalKey _onNextKey = GlobalKey(debugLabel: 'onNextKey');
-  final GlobalKey _number2Key = GlobalKey(debugLabel: 'number2Key');
-  final GlobalKey _number4Key = GlobalKey(debugLabel: 'number4Key');
-  final GlobalKey _destination2Key = GlobalKey(debugLabel: 'destination2Key');
-  final GlobalKey _destination4Key = GlobalKey(debugLabel: 'destination4Key');
 
-// Drag-drop progress
-  String? _valueInEmpty; // 3 -> empty circle
-  String? _valueOnSeven; // 2 -> 7
-  String? _valueOnTen; // 4 -> 10
+  // Drag sources
+  final GlobalKey _src3Key = GlobalKey(debugLabel: 'src_3');
+  final GlobalKey _src4Key = GlobalKey(debugLabel: 'src_4');
+  final GlobalKey _src2Key = GlobalKey(debugLabel: 'src_2');
+
+  // Drag destinations
+  final GlobalKey _dstEmptyKey = GlobalKey(debugLabel: 'dst_empty');
+  final GlobalKey _dst7Key = GlobalKey(debugLabel: 'dst_7');
+  final GlobalKey _dst10Key = GlobalKey(debugLabel: 'dst_10');
+
+  // Drag-drop progress (generic)
+  String? _valueInEmpty; // for dst_empty
+  String? _valueOnSeven; // for dst_7
+  String? _valueOnTen; // for dst_10
 
   @override
   void initState() {
     super.initState();
     _initOnboarding();
 
-    // Start onboarding after a longer delay to ensure all widgets are properly laid out
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        if (mounted) {
-          _onboardingController.start();
-        }
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) _onboardingController.start();
       });
     });
   }
@@ -58,29 +60,30 @@ class _MathGameDemoState extends State<MathGameDemo> {
         description:
             'This section shows your current math problem. Solve math problems to earn coins and progress through the levels.',
       ),
+      // Drag 3 -> empty
       dragStep(
         id: 'drag_number1',
-        sourceKey: _number3Key,
-        destinationKey: _emptyCircleKey,
+        sourceKey: _src3Key,
+        destinationKey: _dstEmptyKey,
         title: 'Drag the Number',
         description:
-            'Drag the number "3" from here to the empty circle to complete the math equation 7 + 3 = 10',
+            'Drag the number from here to the empty circle to complete the equation.',
       ),
+      // Drag 2 -> 7
       dragStep(
         id: 'drag_number2',
-        sourceKey: _number2Key,
-        destinationKey: _destination2Key,
+        sourceKey: _src2Key,
+        destinationKey: _dst7Key,
         title: 'Drag the Number',
-        description:
-            'Drag the number "2" from here to the empty circle to complete the math equation 7 + 2 = 9',
+        description: 'Drag the correct number into the circle.',
       ),
+      // Drag 4 -> 10
       dragStep(
         id: 'drag_number3',
-        sourceKey: _number4Key,
-        destinationKey: _destination4Key,
+        sourceKey: _src4Key,
+        destinationKey: _dst10Key,
         title: 'Drag the Number',
-        description:
-            'Drag the number "4" from here to the empty circle to complete the math equation 7 + 4 = 11',
+        description: 'Drag the correct number into the circle.',
       ),
       tapStep(
         id: 'on_next',
@@ -116,18 +119,14 @@ class _MathGameDemoState extends State<MathGameDemo> {
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              _onboardingController.start();
-            },
+            onPressed: () => _onboardingController.start(),
           ),
         ],
       ),
       body: Column(
         children: [
           _buildGameSelection(),
-          Expanded(
-            child: _buildMathGame(),
-          ),
+          Expanded(child: _buildMathGame()),
         ],
       ),
     ).withOnboarding(_onboardingController);
@@ -147,10 +146,8 @@ class _MathGameDemoState extends State<MathGameDemo> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '1. Choose a Mini-game',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                Text('1. Choose a Mini-game',
+                    style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Container(
                   key: _gameSelectionKey,
@@ -197,10 +194,8 @@ class _MathGameDemoState extends State<MathGameDemo> {
                 topRight: Radius.circular(8),
               ),
             ),
-            child: Text(
-              '2. Play, Learn and Earn Coins',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            child: Text('2. Play, Learn and Earn Coins',
+                style: Theme.of(context).textTheme.titleLarge),
           ),
           const SizedBox(height: 32),
           _buildMathProblem(),
@@ -229,18 +224,12 @@ class _MathGameDemoState extends State<MathGameDemo> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ObDragTarget<String>(
-                keyRef: _destination4Key,
-                canAccept: (d) => d == '4' && _valueOnTen == null,
+              NumberSlotLabel(
+                label: '10',
+                keyRef: _dst10Key,
+                expectedValue: '4',
+                currentValue: _valueOnTen,
                 onAccept: (d) => setState(() => _valueOnTen = d),
-                builder: (context, cand, _) {
-                  final color = _valueOnTen != null
-                      ? Colors.green
-                      : (cand.isNotEmpty
-                          ? Colors.purple.shade700
-                          : Colors.purple);
-                  return _buildNumberCircle('10', color);
-                },
               ),
             ],
           ),
@@ -248,52 +237,20 @@ class _MathGameDemoState extends State<MathGameDemo> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              ObDragTarget<String>(
-                keyRef: _destination2Key,
-                canAccept: (d) => d == '2' && _valueOnSeven == null,
+              NumberSlotLabel(
+                label: '7',
+                keyRef: _dst7Key,
+                expectedValue: '2',
+                currentValue: _valueOnSeven,
                 onAccept: (d) => setState(() => _valueOnSeven = d),
-                builder: (context, cand, _) {
-                  final color = _valueOnSeven != null
-                      ? Colors.green
-                      : (cand.isNotEmpty
-                          ? Colors.purple.shade700
-                          : Colors.purple);
-                  return _buildNumberCircle('7', color);
-                },
               ),
               const Text('+',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              ObDragTarget<String>(
-                keyRef: _emptyCircleKey,
-                canAccept: (d) => d == '3' && _valueInEmpty == null,
+              NumberSlotEmpty(
+                keyRef: _dstEmptyKey,
+                expectedValue: '3',
+                currentValue: _valueInEmpty,
                 onAccept: (d) => setState(() => _valueInEmpty = d),
-                builder: (context, cand, _) {
-                  final highlight = cand.isNotEmpty;
-                  final hasValue = _valueInEmpty != null;
-                  return Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: hasValue ? Colors.purple : Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color:
-                            highlight ? Colors.purple.shade700 : Colors.purple,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        hasValue ? _valueInEmpty! : '',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  );
-                },
               ),
             ],
           ),
@@ -306,86 +263,14 @@ class _MathGameDemoState extends State<MathGameDemo> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildDraggableNumber('3', Colors.blue,
-            keyRef: _number3Key, enabled: _valueInEmpty == null),
+        NumberChip(
+            number: '3', keyRef: _src3Key, enabled: _valueInEmpty == null),
         const SizedBox(width: 16),
-        _buildDraggableNumber('4', Colors.blue,
-            keyRef: _number4Key, enabled: _valueOnTen == null),
+        NumberChip(number: '4', keyRef: _src4Key, enabled: _valueOnTen == null),
         const SizedBox(width: 16),
-        _buildDraggableNumber('2', Colors.blue,
-            keyRef: _number2Key, enabled: _valueOnSeven == null),
+        NumberChip(
+            number: '2', keyRef: _src2Key, enabled: _valueOnSeven == null),
       ],
-    );
-  }
-
-  // Special method for the draggable number to avoid key conflicts
-  Widget _buildDraggableNumber(String number, Color color,
-      {required GlobalKey keyRef, bool enabled = true}) {
-    final circle = Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      child: Center(
-        child: Text(
-          number,
-          style: const TextStyle(
-              color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-
-    final fb = Material(
-      color: Colors.transparent,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8)
-          ],
-        ),
-        child: Center(
-          child: Text(
-            number,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    );
-
-    if (!enabled) return Opacity(opacity: 0.4, child: circle);
-
-    return ObDraggable<String>(
-      keyRef: keyRef,
-      data: number,
-      child: circle,
-      childWhenDragging: Opacity(opacity: 0.2, child: circle),
-      feedback: fb,
-    );
-  }
-
-  Widget _buildNumberCircle(String number, Color color, {Key? key}) {
-    return Container(
-      key: key,
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          number,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 
@@ -396,10 +281,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           ElevatedButton(
-            onPressed: () {
-              // Back button functionality
-              Navigator.of(context).pop();
-            },
+            onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.grey.shade300,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -409,10 +291,8 @@ class _MathGameDemoState extends State<MathGameDemo> {
           ElevatedButton(
             key: _onNextKey,
             onPressed: () {
-              // Next button functionality
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Moving to next question!')),
-              );
+                  const SnackBar(content: Text('Moving to next question!')));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal.shade300,

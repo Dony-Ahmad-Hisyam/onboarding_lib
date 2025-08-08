@@ -12,7 +12,9 @@ export 'src/widgets/onboarding_overlay.dart';
 export 'src/widgets/onboarding_tooltip.dart';
 export 'src/widgets/animated_hint_icon.dart';
 export 'src/widgets/positioned_hint_icon.dart';
+export 'src/widgets/ob_bind_id.dart';
 
 // Export utils/helpers
 export 'src/utils/shortcuts.dart';
 export 'src/utils/onboarding_drag_utils.dart';
+export 'src/utils/onboarding_key_store.dart';
