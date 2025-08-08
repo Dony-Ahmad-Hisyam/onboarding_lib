@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:onboarding_lib/onboarding_lib.dart';
-import 'widgets/number_widgets.dart';
 
 class MathGameDemo extends StatefulWidget {
   const MathGameDemo({Key? key}) : super(key: key);
@@ -224,12 +223,19 @@ class _MathGameDemoState extends State<MathGameDemo> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              NumberSlotLabel(
-                label: '10',
-                keyRef: _dst10Key,
-                expectedValue: '4',
-                currentValue: _valueOnTen,
+              // Destination 10
+              DragTarget<String>(
+                key: _dst10Key,
+                onWillAccept: (d) => d == '4' && _valueOnTen == null,
                 onAccept: (d) => setState(() => _valueOnTen = d),
+                builder: (context, cand, _) {
+                  final color = _valueOnTen != null
+                      ? Colors.green
+                      : (cand.isNotEmpty
+                          ? Colors.purple.shade700
+                          : Colors.purple);
+                  return _buildNumberCircle('10', color);
+                },
               ),
             ],
           ),
@@ -237,20 +243,54 @@ class _MathGameDemoState extends State<MathGameDemo> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              NumberSlotLabel(
-                label: '7',
-                keyRef: _dst7Key,
-                expectedValue: '2',
-                currentValue: _valueOnSeven,
+              // Destination 7
+              DragTarget<String>(
+                key: _dst7Key,
+                onWillAccept: (d) => d == '2' && _valueOnSeven == null,
                 onAccept: (d) => setState(() => _valueOnSeven = d),
+                builder: (context, cand, _) {
+                  final color = _valueOnSeven != null
+                      ? Colors.green
+                      : (cand.isNotEmpty
+                          ? Colors.purple.shade700
+                          : Colors.purple);
+                  return _buildNumberCircle('7', color);
+                },
               ),
               const Text('+',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              NumberSlotEmpty(
-                keyRef: _dstEmptyKey,
-                expectedValue: '3',
-                currentValue: _valueInEmpty,
+              // Destination empty
+              DragTarget<String>(
+                key: _dstEmptyKey,
+                onWillAccept: (d) => d == '3' && _valueInEmpty == null,
                 onAccept: (d) => setState(() => _valueInEmpty = d),
+                builder: (context, cand, _) {
+                  final highlight = cand.isNotEmpty;
+                  final hasValue = _valueInEmpty != null;
+                  return Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: hasValue ? Colors.purple : Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color:
+                            highlight ? Colors.purple.shade700 : Colors.purple,
+                        width: 2,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        hasValue ? _valueInEmpty! : '',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24, 
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -259,17 +299,177 @@ class _MathGameDemoState extends State<MathGameDemo> {
     );
   }
 
+  Widget _buildNumberCircle(String number, Color color) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          number,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
   Widget _buildNumberOptions() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        NumberChip(
-            number: '3', keyRef: _src3Key, enabled: _valueInEmpty == null),
+        // Source 3
+        Builder(builder: (context) {
+          final number = '3';
+          final circle = Container(
+            width: 60,
+            height: 60,
+            decoration:
+                const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+            child: Center(
+              child: Text(number,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold)),
+            ),
+          );
+          final feedback = Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.25), blurRadius: 8)
+                ],
+              ),
+              child: Center(
+                child: Text(number,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          );
+          final enabled = _valueInEmpty == null;
+          return enabled
+              ? Draggable<String>(
+                  key: _src3Key,
+                  data: number,
+                  child: circle,
+                  childWhenDragging: Opacity(opacity: 0.2, child: circle),
+                  feedback: feedback,
+                )
+              : Opacity(opacity: 0.4, child: circle);
+        }),
         const SizedBox(width: 16),
-        NumberChip(number: '4', keyRef: _src4Key, enabled: _valueOnTen == null),
+        // Source 4
+        Builder(builder: (context) {
+          final number = '4';
+          final circle = Container(
+            width: 60,
+            height: 60,
+            decoration:
+                const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+            child: Center(
+              child: Text(number,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold)),
+            ),
+          );
+          final feedback = Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.25), blurRadius: 8)
+                ],
+              ),
+              child: Center(
+                child: Text(number,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          );
+          final enabled = _valueOnTen == null;
+          return enabled
+              ? Draggable<String>(
+                  key: _src4Key,
+                  data: number,
+                  child: circle,
+                  childWhenDragging: Opacity(opacity: 0.2, child: circle),
+                  feedback: feedback,
+                )
+              : Opacity(opacity: 0.4, child: circle);
+        }),
         const SizedBox(width: 16),
-        NumberChip(
-            number: '2', keyRef: _src2Key, enabled: _valueOnSeven == null),
+        // Source 2
+        Builder(builder: (context) {
+          final number = '2';
+          final circle = Container(
+            width: 60,
+            height: 60,
+            decoration:
+                const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+            child: Center(
+              child: Text(number,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold)),
+            ),
+          );
+          final feedback = Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.25), blurRadius: 8)
+                ],
+              ),
+              child: Center(
+                child: Text(number,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          );
+          final enabled = _valueOnSeven == null;
+          return enabled
+              ? Draggable<String>(
+                  key: _src2Key,
+                  data: number,
+                  child: circle,
+                  childWhenDragging: Opacity(opacity: 0.2, child: circle),
+                  feedback: feedback,
+                )
+              : Opacity(opacity: 0.4, child: circle);
+        }),
       ],
     );
   }

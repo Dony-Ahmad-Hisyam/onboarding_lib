@@ -4,12 +4,12 @@ Perpustakaan Flutter untuk membuat onboarding interaktif (tap dan drag & drop) d
 
 Fitur Utama
 
-- Highlight langsung terlihat dari langkah pertama
+- Highlight langsung terlihat di langkah pertama
 - Tooltip cerdas: menghindari area highlight, koridor drag, dan node sumber/tujuan
-- Drag & drop generik (payload tipe apa pun)
+- Drag & drop generik (payload apa pun)
 - API ringkas: tapStep, dragStep, ob, withOnboarding
-- Wrapper generik: ObDraggable<T>, ObDragTarget<T>
-- Opsi binding via ID: OnboardingKeyStore + tapStepById/dragStepById (opsional)
+- Best way sederhana: GlobalKey + Draggable/DragTarget (tanpa wrapper)
+- Alternatif opsional: ObDraggable/ObDragTarget dan binding via ID (tapStepById/dragStepById)
 - Kustomisasi penuh: warna overlay, padding target, gaya tooltip, dll.
 
 Instalasi
@@ -29,9 +29,9 @@ import 'package:onboarding_lib/onboarding_lib.dart';
 
 Panduan Lengkap (Indonesia)
 
-Rekomendasi “best way” (tanpa ID): gunakan GlobalKey + ObDraggable/ObDragTarget dan langkah tapStep/dragStep.
+Rekomendasi paling sederhana (tanpa ID, tanpa wrapper): GlobalKey + Draggable/DragTarget + tapStep/dragStep.
 
-1. Tandai widget target dengan GlobalKey
+1. Tandai widget yang ingin di-highlight dengan GlobalKey
 
 ```dart
 final GlobalKey btnKey = GlobalKey();
@@ -43,32 +43,37 @@ ElevatedButton(
 )
 ```
 
-2. Untuk drag & drop, bungkus sumber dan tujuan
+2. Untuk drag & drop, pakai Draggable/DragTarget biasa dengan GlobalKey
 
-- Sumber (draggable):
+- Sumber (Draggable):
 
 ```dart
 final GlobalKey srcKey = GlobalKey();
 
-ObDraggable<String>(
-  keyRef: srcKey,
-  data: 'apel',
-  child: buildChip('Apel'),
-  childWhenDragging: Opacity(opacity: 0.2, child: buildChip('Apel')),
-  feedback: Material(color: Colors.transparent, child: buildChip('Apel')),
+Draggable<String>(
+  key: srcKey,
+  data: '4',
+  child: buildBlueCircle('4'),
+  childWhenDragging: Opacity(opacity: 0.2, child: buildBlueCircle('4')),
+  feedback: Material(color: Colors.transparent, child: buildBlueCircle('4')),
 )
 ```
 
-- Tujuan (drag target):
+- Tujuan (DragTarget):
 
 ```dart
 final GlobalKey dstKey = GlobalKey();
 
-ObDragTarget<String>(
-  keyRef: dstKey,
-  canAccept: (d) => d == 'apel',
-  onAccept: (d) => setState(() => _picked = d),
-  builder: (context, candidates, _) => buildDropSlot(_picked, candidates),
+DragTarget<String>(
+  key: dstKey,
+  onWillAccept: (d) => d == '4' && _valueOnTarget == null,
+  onAccept: (d) => setState(() => _valueOnTarget = d),
+  builder: (context, candidates, _) {
+    final color = _valueOnTarget != null
+        ? Colors.green
+        : (candidates.isNotEmpty ? Colors.purple.shade700 : Colors.purple);
+    return buildPurpleCircle('10', color);
+  },
 )
 ```
 
@@ -83,13 +88,13 @@ final steps = [
     description: 'Ketuk tombol ini untuk memulai.',
   ),
   dragStep(
-    id: 'drag_apel',
+    id: 'drag_4_to_10',
     sourceKey: srcKey,
     destinationKey: dstKey,
-    title: 'Seret Item',
-    description: 'Seret item dari sumber ke tujuan.',
+    title: 'Seret Angka',
+    description: 'Seret angka dari sumber ke lingkaran tujuan.',
     // default drag: position = TooltipPosition.top,
-    // anchor = DragTooltipAnchor.destination (tooltip prefer dekat tujuan)
+    // anchor = DragTooltipAnchor.destination
   ),
 ];
 ```
@@ -131,114 +136,113 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
 });
 ```
 
-7. Contoh drag multi (seperti di example):
+7. Multi-drag seperti contoh (Math Game)
 
-- Seret “4” ke lingkaran “10”
-- Seret “2” ke lingkaran “7”
-- Seret “3” ke lingkaran kosong
+- Seret “4” → lingkaran “10”
+- Seret “2” → lingkaran “7”
+- Seret “3” → lingkaran kosong
 
-Gunakan tiga GlobalKey untuk sumber (4, 2, 3) dan tiga GlobalKey untuk tujuan (10, 7, empty), lalu definisikan tiga dragStep sesuai pasangan.
+Buat tiga GlobalKey untuk sumber (4, 2, 3) dan tiga GlobalKey untuk tujuan (10, 7, empty), lalu tambahkan tiga dragStep sesuai pasangannya. Lihat `example/lib/match_game_demo.dart` untuk implementasi lengkap satu file.
 
-Kustomisasi Tooltip & Overlay
+Kustomisasi
 
 - TooltipPosition: top, bottom, left, right, auto
-- DragTooltipAnchor: auto, source, destination (drag default: destination)
-- OnboardingConfig.tooltipConfig: atur warna, teks, maxWidth, padding, margin, borderRadius, dll.
-- targetPadding: atur jarak padding highlight dari target
+- DragTooltipAnchor: auto, source, destination (default drag: destination)
+- OnboardingConfig.tooltipConfig: atur warna, teks, maxWidth, padding, margin, borderRadius, dsb.
+- targetPadding: jarak highlight dari target
 
 Best Practices
 
-- Panggil controller.start() setelah frame pertama (post-frame) untuk akurasi posisi.
-- Gunakan GlobalKey yang stabil pada setiap target/sumber.
-- Untuk drag, biarkan anchor tooltip di destination agar jalur drag tidak tertutup.
+- Panggil controller.start() setelah frame pertama agar posisi akurat.
+- Pastikan setiap target/sumber yang di-highlight punya GlobalKey stabil.
+- Untuk drag, biarkan anchor tooltip di destination agar tidak menutupi koridor drag.
 - Hindari rebuild yang mengganti GlobalKey saat onboarding aktif.
 
 Troubleshooting
 
-- Tooltip menutupi target/koridor drag: default dragStep sudah mengarahkan tooltip ke dekat tujuan dan engine menghindari area konflik. Sesuaikan position bila diperlukan.
-- Overlay tidak muncul di langkah awal: pastikan start() dipanggil setelah layout siap.
-- Target tidak terdeteksi: cek GlobalKey terpasang pada widget yang dirender.
+- Tooltip menutupi target/koridor: default drag menempatkan tooltip dekat destination dan menghindari area konflik; sesuaikan position bila perlu.
+- Overlay tidak muncul di langkah awal: pastikan start() dipanggil setelah layout.
+- Target tidak terdeteksi: pastikan GlobalKey ditempel pada widget yang dirender.
 
-Opsi: Binding Berbasis ID (Indonesia)
+Alternatif (Opsional)
 
-Jika ingin tanpa menyimpan banyak GlobalKey, gunakan OnboardingKeyStore dan helper tapStepById/dragStepById.
+- Wrapper generik (ObDraggable/ObDragTarget)
+  Jika ingin payload typed dan pembungkusan rapi, Anda bisa gunakan:
 
-- Tandai widget dengan key dari store:
+```dart
+ObDraggable<String>(keyRef: srcKey, data: '4', child: buildChip('4'), feedback: ...);
+ObDragTarget<String>(keyRef: dstKey, canAccept: (d) => d == '4', onAccept: ..., builder: ...);
+```
+
+- Binding berbasis ID (OnboardingKeyStore)
+  Menghindari menyimpan banyak GlobalKey di State:
 
 ```dart
 final keys = OnboardingKeyStore.instance;
 
-ObDraggable<String>(keyRef: keys.key('src_apel'), data: 'apel', child: ..., feedback: ...);
-ObDragTarget<String>(keyRef: keys.key('dst_keranjang'), canAccept: ..., onAccept: ..., builder: ...);
-```
+// Tag UI
+ObDraggable<String>(keyRef: keys.key('src_4'), data: '4', child: ..., feedback: ...);
+ObDragTarget<String>(keyRef: keys.key('dst_10'), canAccept: ..., onAccept: ..., builder: ...);
 
-- Definisikan langkah dengan helper berbasis ID:
-
-```dart
+// Langkah berbasis ID via helper
 final steps = [
-  tapStepById(
-    id: 'welcome',
-    targetId: 'btn_mulai',
-    title: 'Mulai',
-    description: 'Ketuk untuk memulai.',
-  ),
-  dragStepById(
-    id: 'drag_apel',
-    sourceId: 'src_apel',
-    destinationId: 'dst_keranjang',
-    title: 'Seret Item',
-    description: 'Seret dari sumber ke tujuan.',
-  ),
+  tapStepById(id: 'welcome', targetId: 'btn_start', title: 'Mulai', description: 'Tap untuk mulai'),
+  dragStepById(id: 'drag_4_to_10', sourceId: 'src_4', destinationId: 'dst_10', title: 'Seret', description: 'Seret ke tujuan'),
 ];
 ```
 
 Contoh Lengkap
 
-Lihat folder `example/` untuk contoh Math Game:
+Lihat folder `example/` untuk contoh Math Game satu file (tanpa ID & tanpa wrapper), menggunakan:
 
-- Menggunakan tapStep, dragStep, ob, withOnboarding
-- Wrapper ObDraggable/ObDragTarget (payload String)
+- tapStep, dragStep, ob, withOnboarding
+- Draggable/DragTarget standar dengan GlobalKey
 - Multi drag (4→10, 2→7, 3→empty)
 
 ---
 
 Complete Tutorial (English)
 
-Recommended “best way” (no IDs): use GlobalKey + ObDraggable/ObDragTarget with tapStep/dragStep.
+The simplest recommended path (no IDs, no wrappers): GlobalKey + Draggable/DragTarget + tapStep/dragStep.
 
-1. Attach a GlobalKey to any widget you want to highlight
+1. Attach a GlobalKey to widgets to highlight
 
 ```dart
 final GlobalKey btnKey = GlobalKey();
 ElevatedButton(key: btnKey, onPressed: () {}, child: const Text('Start'));
 ```
 
-2. For drag & drop, wrap sources and destinations
+2. For drag & drop, use plain Draggable/DragTarget with GlobalKeys
 
-- Source:
+- Source (Draggable):
 
 ```dart
 final GlobalKey sourceKey = GlobalKey();
 
-ObDraggable<Item>(
-  keyRef: sourceKey,
-  data: item,
-  child: buildItem(item),
-  childWhenDragging: Opacity(opacity: 0.2, child: buildItem(item)),
-  feedback: Material(color: Colors.transparent, child: buildItem(item)),
+Draggable<String>(
+  key: sourceKey,
+  data: '4',
+  child: buildBlueCircle('4'),
+  childWhenDragging: Opacity(opacity: 0.2, child: buildBlueCircle('4')),
+  feedback: Material(color: Colors.transparent, child: buildBlueCircle('4')),
 )
 ```
 
-- Destination:
+- Destination (DragTarget):
 
 ```dart
 final GlobalKey destKey = GlobalKey();
 
-ObDragTarget<Item>(
-  keyRef: destKey,
-  canAccept: (it) => canDrop(it),
-  onAccept: (it) => setState(() => place(it)),
-  builder: (context, candidates, _) => buildSlot(candidates),
+DragTarget<String>(
+  key: destKey,
+  onWillAccept: (d) => d == '4' && _valueOnTarget == null,
+  onAccept: (d) => setState(() => _valueOnTarget = d),
+  builder: (context, candidates, _) {
+    final color = _valueOnTarget != null
+        ? Colors.green
+        : (candidates.isNotEmpty ? Colors.purple.shade700 : Colors.purple);
+    return buildPurpleCircle('10', color);
+  },
 )
 ```
 
@@ -253,11 +257,11 @@ final steps = [
     description: 'Tap this button to get started.',
   ),
   dragStep(
-    id: 'drag_item',
+    id: 'drag_4_to_10',
     sourceKey: sourceKey,
     destinationKey: destKey,
-    title: 'Drag Item',
-    description: 'Drag the item from source to destination.',
+    title: 'Drag Number',
+    description: 'Drag the number from source to the destination circle.',
   ),
 ];
 ```
@@ -291,46 +295,53 @@ return Scaffold(...).withOnboarding(controller);
 WidgetsBinding.instance.addPostFrameCallback((_) => controller.start());
 ```
 
-7. Multi-drag example (as in the sample app):
+7. Multi-drag (as in the sample app)
 
 - Drag “4” → circle “10”
 - Drag “2” → circle “7”
 - Drag “3” → empty circle
 
-Create GlobalKeys for each source/destination pair and add one dragStep per pair.
+Create GlobalKeys for each source/destination pair and add one dragStep per pair. See `example/lib/match_game_demo.dart` for a single-file implementation.
 
 Customization
 
 - TooltipPosition: top, bottom, left, right, auto
 - DragTooltipAnchor: auto, source, destination (drag defaults to destination)
 - TooltipConfig: colors, text, maxWidth, padding, margin, borderRadius, styles
-- targetPadding to adjust highlight padding
+- targetPadding adjusts highlight padding
 
 Best Practices
 
-- Call controller.start() in a post-frame callback.
+- Call controller.start() in a post-frame callback for accurate positions.
 - Keep GlobalKeys stable for all highlighted widgets.
-- For drag flows, prefer anchoring tooltips near the destination to avoid covering the corridor.
-- Avoid rebuilding widgets that would recreate GlobalKeys during onboarding.
+- For drag flows, prefer anchoring near the destination to avoid covering the corridor.
+- Avoid rebuilding widgets that recreate GlobalKeys during onboarding.
 
 Troubleshooting
 
-- Tooltip overlaps highlight/drag corridor: default drag placement prefers destination and the engine avoids conflict zones; adjust position if needed.
+- Tooltip overlaps highlight/drag corridor: default drag placement prefers destination and avoids conflicts; adjust position if needed.
 - Overlay not visible on the first step: ensure start() is called after layout.
-- Target not detected: ensure GlobalKeys are set on rendered widgets.
+- Target not detected: ensure GlobalKeys are attached to rendered widgets.
 
-Optional: ID-based Binding (English)
+Alternatives (Optional)
 
-If you prefer not to keep many GlobalKeys in state, use OnboardingKeyStore with tapStepById/dragStepById.
+- Generic wrappers (ObDraggable/ObDragTarget) for a typed, wrapped API
+
+```dart
+ObDraggable<String>(keyRef: sourceKey, data: '4', child: ..., feedback: ...);
+ObDragTarget<String>(keyRef: destKey, canAccept: (d) => d == '4', onAccept: ..., builder: ...);
+```
+
+- ID-based binding (OnboardingKeyStore) with tapStepById/dragStepById
 
 ```dart
 final keys = OnboardingKeyStore.instance;
-ObDraggable<Item>(keyRef: keys.key('src_item'), data: item, child: ..., feedback: ...);
-ObDragTarget<Item>(keyRef: keys.key('dst_slot'), canAccept: ..., onAccept: ..., builder: ...);
+ObDraggable<String>(keyRef: keys.key('src_4'), data: '4', child: ..., feedback: ...);
+ObDragTarget<String>(keyRef: keys.key('dst_10'), canAccept: ..., onAccept: ..., builder: ...);
 
 final steps = [
-  tapStepById(id: 'welcome', targetId: 'btn_start', title: 'Start', description: 'Tap to start.'),
-  dragStepById(id: 'drag_item', sourceId: 'src_item', destinationId: 'dst_slot', title: 'Drag', description: 'Drag from source to slot.'),
+  tapStepById(id: 'welcome', targetId: 'btn_start', title: 'Start', description: 'Tap to start'),
+  dragStepById(id: 'drag_4_to_10', sourceId: 'src_4', destinationId: 'dst_10', title: 'Drag', description: 'Drag from source to destination'),
 ];
 ```
 
