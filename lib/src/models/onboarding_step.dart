@@ -15,6 +15,18 @@ enum TooltipPosition {
   auto,
 }
 
+/// Anchor preference for tooltip on drag & drop steps
+enum DragTooltipAnchor {
+  /// Automatically decide (default)
+  auto,
+
+  /// Prefer placing tooltip near the drag source (targetKey)
+  source,
+
+  /// Prefer placing tooltip near the drop destination (destinationKey)
+  destination,
+}
+
 class OnboardingStep {
   /// The unique identifier for this step
   final String id;
@@ -67,6 +79,12 @@ class OnboardingStep {
   /// Color for the hint icon
   final Color? hintIconColor;
 
+  /// Preferred anchor for tooltip when interaction is drag & drop
+  /// - auto: library chooses best
+  /// - source: place near draggable source
+  /// - destination: place near drop destination
+  final DragTooltipAnchor dragTooltipAnchor;
+
   const OnboardingStep({
     required this.id,
     required this.targetKey,
@@ -85,5 +103,6 @@ class OnboardingStep {
     this.hintImagePath,
     this.customIconWidget,
     this.hintIconColor,
+    this.dragTooltipAnchor = DragTooltipAnchor.auto,
   });
 }

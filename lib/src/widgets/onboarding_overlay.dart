@@ -165,7 +165,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
         children: [
           widget.child,
 
-          // Visual overlay - doesn't interact with touch events
+          // Visual overlay - show immediately when controller is visible
           if (widget.controller.isVisible)
             IgnorePointer(
               child: _buildVisualOverlay(),
@@ -286,8 +286,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                       ? currentStep.destinationKey
                       : null,
               padding: config.targetPadding,
-              overlayColor: config.overlayColor
-                  .withOpacity(_fadeAnimation.value * config.overlayOpacity),
+              overlayColor:
+                  config.overlayColor.withOpacity(config.overlayOpacity),
               corridorWidth: 60.0, // Reduced corridor width
               borderColor: currentStep.hintIconColor ??
                   Colors.amber, // Changed to amber for better visibility
@@ -413,15 +413,22 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               child: Container(
                 color: Colors.transparent,
                 child: Center(
-                  child: step.customIconWidget ??
-                      Icon(
-                        step.hintIcon ?? Icons.touch_app,
-                        color: step.hintIconColor ?? Colors.white,
-                        size: math.max(
-                            32.0,
-                            math.min(sourceSize.width, sourceSize.height) *
-                                0.7), // Increased from 0.5 to 0.7 with minimum 32px
-                      ),
+                  // Only show the static hint icon when not animating and not dragging
+                  child: (() {
+                    final bool showSourceHintIcon = !_isUserDragging &&
+                        (_dragAnimationController == null ||
+                            _dragAnimationController!.isDismissed);
+                    if (!showSourceHintIcon) return const SizedBox.shrink();
+                    return step.customIconWidget ??
+                        Icon(
+                          step.hintIcon ?? Icons.touch_app,
+                          color: step.hintIconColor ?? Colors.white,
+                          size: math.max(
+                              32.0,
+                              math.min(sourceSize.width, sourceSize.height) *
+                                  0.7), // Increased from 0.5 to 0.7 with minimum 32px
+                        );
+                  })(),
                 ),
               ),
             ),
@@ -515,7 +522,13 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
 
   Widget _buildTooltip() {
     final step = widget.controller.currentStep;
-    final targetContext = step.targetKey.currentContext;
+    // Determine which element to anchor the tooltip to (for arrow/orientation)
+    BuildContext? targetContext = step.targetKey.currentContext;
+    if (step.interactionType == InteractionType.dragDrop &&
+        step.dragTooltipAnchor == DragTooltipAnchor.destination &&
+        step.destinationKey?.currentContext != null) {
+      targetContext = step.destinationKey!.currentContext;
+    }
 
     if (targetContext == null) return const SizedBox();
 
@@ -594,13 +607,36 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     final double margin = 16.0;
     final double spacing = 12.0; // Space between target and tooltip
 
-    // Target center
+    // Allow dev to anchor tooltip near source or destination for drag & drop
+    if (step.interactionType == InteractionType.dragDrop &&
+        step.destinationKey?.currentContext != null &&
+        step.targetKey.currentContext != null &&
+        step.dragTooltipAnchor != DragTooltipAnchor.auto) {
+      final RenderBox srcBox =
+          step.targetKey.currentContext!.findRenderObject() as RenderBox;
+      final RenderBox dstBox =
+          step.destinationKey!.currentContext!.findRenderObject() as RenderBox;
+      final Offset srcPos = srcBox.localToGlobal(Offset.zero);
+      final Size srcSize = srcBox.size;
+      final Offset dstPos = dstBox.localToGlobal(Offset.zero);
+      final Size dstSize = dstBox.size;
+
+      if (step.dragTooltipAnchor == DragTooltipAnchor.destination) {
+        targetPosition = dstPos;
+        targetSize = dstSize;
+      } else {
+        targetPosition = srcPos;
+        targetSize = srcSize;
+      }
+    }
+
+    // Target center AFTER any anchor override
     final Offset targetCenter = Offset(
       targetPosition.dx + targetSize.width / 2,
       targetPosition.dy + targetSize.height / 2,
     );
 
-    // Available areas with more precise calculations
+    // Available areas computed AFTER any anchor override
     final double leftSpace = targetPosition.dx - margin;
     final double rightSpace =
         screenSize.width - (targetPosition.dx + targetSize.width) - margin;
@@ -616,43 +652,37 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     // Determine best position based on available space and step preference
     TooltipPosition preferredPosition = step.position;
 
-    // Override preferred position if not enough space
-    if (preferredPosition == TooltipPosition.bottom &&
-        bottomSpace < tooltipSize.height + spacing) {
-      if (topSpace >= tooltipSize.height + spacing) {
-        preferredPosition = TooltipPosition.top;
-      } else if (rightSpace >= tooltipSize.width + spacing) {
-        preferredPosition = TooltipPosition.right;
-      } else if (leftSpace >= tooltipSize.width + spacing) {
-        preferredPosition = TooltipPosition.left;
+    // NEW: For drag & drop, allow dev to anchor tooltip near source or destination
+    if (step.interactionType == InteractionType.dragDrop &&
+        step.destinationKey?.currentContext != null &&
+        step.targetKey.currentContext != null &&
+        step.dragTooltipAnchor != DragTooltipAnchor.auto) {
+      final RenderBox srcBox =
+          step.targetKey.currentContext!.findRenderObject() as RenderBox;
+      final RenderBox dstBox =
+          step.destinationKey!.currentContext!.findRenderObject() as RenderBox;
+      final Offset srcPos = srcBox.localToGlobal(Offset.zero);
+      final Size srcSize = srcBox.size;
+      final Offset dstPos = dstBox.localToGlobal(Offset.zero);
+      final Size dstSize = dstBox.size;
+
+      // Override targetPosition/size based on anchor preference
+      if (step.dragTooltipAnchor == DragTooltipAnchor.destination) {
+        targetPosition = dstPos;
+        targetSize = dstSize;
+      } else {
+        targetPosition = srcPos;
+        targetSize = srcSize;
       }
-    } else if (preferredPosition == TooltipPosition.top &&
-        topSpace < tooltipSize.height + spacing) {
-      if (bottomSpace >= tooltipSize.height + spacing) {
-        preferredPosition = TooltipPosition.bottom;
-      } else if (rightSpace >= tooltipSize.width + spacing) {
-        preferredPosition = TooltipPosition.right;
-      } else if (leftSpace >= tooltipSize.width + spacing) {
-        preferredPosition = TooltipPosition.left;
-      }
-    } else if (preferredPosition == TooltipPosition.right &&
-        rightSpace < tooltipSize.width + spacing) {
-      if (leftSpace >= tooltipSize.width + spacing) {
-        preferredPosition = TooltipPosition.left;
-      } else if (bottomSpace >= tooltipSize.height + spacing) {
-        preferredPosition = TooltipPosition.bottom;
-      } else if (topSpace >= tooltipSize.height + spacing) {
-        preferredPosition = TooltipPosition.top;
-      }
-    } else if (preferredPosition == TooltipPosition.left &&
-        leftSpace < tooltipSize.width + spacing) {
-      if (rightSpace >= tooltipSize.width + spacing) {
-        preferredPosition = TooltipPosition.right;
-      } else if (bottomSpace >= tooltipSize.height + spacing) {
-        preferredPosition = TooltipPosition.bottom;
-      } else if (topSpace >= tooltipSize.height + spacing) {
-        preferredPosition = TooltipPosition.top;
-      }
+
+      // Recompute dependent values for anchored target
+      final Offset anchoredCenter = Offset(
+        targetPosition.dx + targetSize.width / 2,
+        targetPosition.dy + targetSize.height / 2,
+      );
+      // Replace local copies
+      // ignore: unused_local_variable
+      final _ = anchoredCenter; // keep analyzer happy for structure
     }
 
     // Position based on determined optimal position
@@ -708,6 +738,263 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
 
     tooltipX = tooltipX.clamp(minX, maxX.isNaN ? minX : maxX);
     tooltipY = tooltipY.clamp(minY, maxY.isNaN ? minY : maxY);
+
+    // --- NEW (generic): Avoid covering the highlighted target ---
+    final Rect targetRect = Rect.fromLTWH(
+      targetPosition.dx,
+      targetPosition.dy,
+      targetSize.width,
+      targetSize.height,
+    ).inflate(8);
+    Rect tooltipRect = Rect.fromLTWH(
+        tooltipX, tooltipY, tooltipSize.width, tooltipSize.height);
+
+    if (tooltipRect.overlaps(targetRect)) {
+      // Rank candidate positions by available space
+      final candidates = <MapEntry<TooltipPosition, double>>[
+        MapEntry(TooltipPosition.bottom, bottomSpace),
+        MapEntry(TooltipPosition.top, topSpace),
+        MapEntry(TooltipPosition.right, rightSpace),
+        MapEntry(TooltipPosition.left, leftSpace),
+      ]..sort((a, b) => b.value.compareTo(a.value));
+
+      Offset? nonOverlap;
+      for (final entry in candidates) {
+        late Offset test;
+        switch (entry.key) {
+          case TooltipPosition.bottom:
+            test = Offset(
+              _calculateHorizontalPosition(
+                  targetCenter.dx, tooltipSize.width, screenSize.width, margin),
+              targetPosition.dy + targetSize.height + spacing,
+            );
+            break;
+          case TooltipPosition.top:
+            test = Offset(
+              _calculateHorizontalPosition(
+                  targetCenter.dx, tooltipSize.width, screenSize.width, margin),
+              targetPosition.dy - tooltipSize.height - spacing,
+            );
+            break;
+          case TooltipPosition.right:
+            test = Offset(
+              targetPosition.dx + targetSize.width + spacing,
+              _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
+                  screenSize.height, safeArea, margin),
+            );
+            break;
+          case TooltipPosition.left:
+            test = Offset(
+              targetPosition.dx - tooltipSize.width - spacing,
+              _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
+                  screenSize.height, safeArea, margin),
+            );
+            break;
+          case TooltipPosition.auto:
+            test = Offset(tooltipX, tooltipY);
+            break;
+        }
+
+        final double cx = test.dx.clamp(minX, maxX.isNaN ? minX : maxX);
+        final double cy = test.dy.clamp(minY, maxY.isNaN ? minY : maxY);
+        final Rect testRect =
+            Rect.fromLTWH(cx, cy, tooltipSize.width, tooltipSize.height);
+        if (!testRect.overlaps(targetRect)) {
+          nonOverlap = Offset(cx, cy);
+          break;
+        }
+      }
+
+      // Resolve final position; if no better candidate, keep current
+      if (nonOverlap != null) {
+        tooltipX = nonOverlap.dx;
+        tooltipY = nonOverlap.dy;
+      }
+    }
+
+    // --- NEW: Avoid covering the highlight/corridor on drag & drop ---
+    if (step.interactionType == InteractionType.dragDrop &&
+        step.destinationKey?.currentContext != null &&
+        step.targetKey.currentContext != null) {
+      final RenderBox srcBox =
+          step.targetKey.currentContext!.findRenderObject() as RenderBox;
+      final RenderBox dstBox =
+          step.destinationKey!.currentContext!.findRenderObject() as RenderBox;
+
+      final Offset srcPos = srcBox.localToGlobal(Offset.zero);
+      final Size srcSize = srcBox.size;
+      final Offset dstPos = dstBox.localToGlobal(Offset.zero);
+      final Size dstSize = dstBox.size;
+
+      final Offset srcCenter =
+          Offset(srcPos.dx + srcSize.width / 2, srcPos.dy + srcSize.height / 2);
+      final Offset dstCenter =
+          Offset(dstPos.dx + dstSize.width / 2, dstPos.dy + dstSize.height / 2);
+
+      // Corridor as a bounding box around the center line between src & dst
+      final Rect lineBounds = Rect.fromPoints(srcCenter, dstCenter);
+      // Make corridor avoidance thicker so tooltip keeps a safe distance
+      final double corridorThickness = 120.0; // px (increased)
+      final Rect corridorRect = lineBounds.inflate(corridorThickness / 2);
+
+      // Also avoid overlapping exact source & destination targets
+      final Rect srcRect =
+          Rect.fromLTWH(srcPos.dx, srcPos.dy, srcSize.width, srcSize.height)
+              .inflate(8);
+      final Rect dstRect =
+          Rect.fromLTWH(dstPos.dx, dstPos.dy, dstSize.width, dstSize.height)
+              .inflate(8);
+
+      // Inflate tooltip rect a bit to account for arrow and layout diffs
+      Rect currentTooltipRect = Rect.fromLTWH(
+              tooltipX, tooltipY, tooltipSize.width, tooltipSize.height)
+          .inflate(12);
+
+      bool overlaps = currentTooltipRect.overlaps(corridorRect) ||
+          currentTooltipRect.overlaps(srcRect) ||
+          currentTooltipRect.overlaps(dstRect);
+
+      // If anchored to destination and tooltip sits completely above destination,
+      // allow it even if it intersects the corridor rectangle (to honor UX request)
+      final bool anchoredToDestination =
+          step.dragTooltipAnchor == DragTooltipAnchor.destination;
+      final bool tooltipAboveDest =
+          currentTooltipRect.bottom <= dstPos.dy - 4; // small gap
+      if (anchoredToDestination && tooltipAboveDest) {
+        // Ignore corridor overlap in this case
+        overlaps = currentTooltipRect.overlaps(srcRect) ||
+            currentTooltipRect.overlaps(dstRect);
+      }
+
+      if (overlaps) {
+        // Try alternative positions that do not intersect the drag path or nodes
+        List<TooltipPosition> candidates = [
+          // Prefer TOP first to keep tooltip above destination
+          TooltipPosition.top,
+          TooltipPosition.bottom,
+          TooltipPosition.left,
+          TooltipPosition.right,
+        ];
+
+        // Prefer placing perpendicular to the drag direction
+        final bool isMostlyHorizontal = (dstCenter.dx - srcCenter.dx).abs() >=
+            (dstCenter.dy - srcCenter.dy).abs();
+        if (isMostlyHorizontal) {
+          candidates = [
+            TooltipPosition.top,
+            TooltipPosition.bottom,
+            TooltipPosition.left,
+            TooltipPosition.right
+          ];
+        } else {
+          candidates = [
+            // Still prefer left/right for vertical drags, but keep top after
+            TooltipPosition.left,
+            TooltipPosition.right,
+            TooltipPosition.top,
+            TooltipPosition.bottom
+          ];
+        }
+
+        Offset? nonOverlap;
+        final double extraSpacing = spacing + 12; // push a bit further away
+        for (final candidate in candidates) {
+          Offset test;
+          switch (candidate) {
+            case TooltipPosition.top:
+              test = Offset(
+                _calculateHorizontalPosition(targetCenter.dx, tooltipSize.width,
+                    screenSize.width, margin),
+                targetPosition.dy - tooltipSize.height - extraSpacing,
+              );
+              break;
+            case TooltipPosition.bottom:
+              test = Offset(
+                _calculateHorizontalPosition(targetCenter.dx, tooltipSize.width,
+                    screenSize.width, margin),
+                targetPosition.dy + targetSize.height + extraSpacing,
+              );
+              break;
+            case TooltipPosition.left:
+              test = Offset(
+                targetPosition.dx - tooltipSize.width - extraSpacing,
+                _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
+                    screenSize.height, safeArea, margin),
+              );
+              break;
+            case TooltipPosition.right:
+              test = Offset(
+                targetPosition.dx + targetSize.width + extraSpacing,
+                _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
+                    screenSize.height, safeArea, margin),
+              );
+              break;
+            case TooltipPosition.auto:
+              test = Offset(tooltipX, tooltipY);
+              break;
+          }
+
+          // Clamp and re-check
+          final double cx = test.dx.clamp(minX, maxX.isNaN ? minX : maxX);
+          final double cy = test.dy.clamp(minY, maxY.isNaN ? minY : maxY);
+          final Rect testRect =
+              Rect.fromLTWH(cx, cy, tooltipSize.width, tooltipSize.height)
+                  .inflate(12);
+          bool candidateOverlaps = testRect.overlaps(corridorRect);
+          if (anchoredToDestination &&
+              (cy + tooltipSize.height) <= dstPos.dy - 4) {
+            // If candidate is above destination, ignore corridor overlap
+            candidateOverlaps = false;
+          }
+
+          if (!candidateOverlaps &&
+              !testRect.overlaps(srcRect) &&
+              !testRect.overlaps(dstRect)) {
+            nonOverlap = Offset(cx, cy);
+            break;
+          }
+        }
+
+        // If nothing works, push the tooltip away from corridor along the
+        // perpendicular direction by a small offset
+        if (nonOverlap == null) {
+          final double push = corridorThickness + 24; // stronger push
+          if (isMostlyHorizontal) {
+            // Push above or below depending on available space
+            final tryUp = (targetPosition.dy - safeArea.top) >
+                (screenSize.height - (targetPosition.dy + targetSize.height));
+            final double proposedY = tryUp
+                ? (targetPosition.dy - tooltipSize.height - extraSpacing - push)
+                : (targetPosition.dy + targetSize.height + extraSpacing + push);
+            final double cy = proposedY.clamp(minY, maxY.isNaN ? minY : maxY);
+            final double cx = _calculateHorizontalPosition(targetCenter.dx,
+                    tooltipSize.width, screenSize.width, margin)
+                .clamp(minX, maxX.isNaN ? minX : maxX);
+            nonOverlap = Offset(cx, cy);
+          } else {
+            // Push left or right
+            final tryLeft = targetPosition.dx >
+                (screenSize.width - (targetPosition.dx + targetSize.width));
+            final double proposedX = tryLeft
+                ? (targetPosition.dx - tooltipSize.width - extraSpacing - push)
+                : (targetPosition.dx + targetSize.width + extraSpacing + push);
+            final double cx = proposedX.clamp(minX, maxX.isNaN ? minX : maxX);
+            final double cy = _calculateVerticalPosition(targetCenter.dy,
+                    tooltipSize.height, screenSize.height, safeArea, margin)
+                .clamp(minY, maxY.isNaN ? minY : maxY);
+            nonOverlap = Offset(cx, cy);
+          }
+        }
+
+        // After trying candidates and fallback, nonOverlap must be set
+        tooltipX = nonOverlap.dx;
+        tooltipY = nonOverlap.dy;
+
+        // Final safety: clamp again
+        tooltipX = tooltipX.clamp(minX, maxX.isNaN ? minX : maxX);
+        tooltipY = tooltipY.clamp(minY, maxY.isNaN ? minY : maxY);
+      }
+    }
 
     return Offset(tooltipX, tooltipY);
   }

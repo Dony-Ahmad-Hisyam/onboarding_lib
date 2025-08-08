@@ -68,8 +68,10 @@ class _MathGameDemoState extends State<MathGameDemo> {
             'Drag the number "3" from here to the empty circle to complete the math equation 7 + 3 = 10',
         interactionType: InteractionType.dragDrop,
         hintIconColor: Colors.greenAccent,
-        position: TooltipPosition.auto, // Let it auto-position
+        position: TooltipPosition.top, // Let it auto-position
         iconPosition: IconPosition.center,
+        // Prefer tooltip anchored near destination to avoid covering drag path
+        dragTooltipAnchor: DragTooltipAnchor.destination,
       ),
       OnboardingStep(
         id: 'on_next',
@@ -80,7 +82,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
         interactionType: InteractionType.tap,
         hintIcon: Icons.touch_app,
         hintIconColor: Colors.amber,
-        position: TooltipPosition.auto, // Let it auto-position
+        position: TooltipPosition.top, // Let it auto-position
         iconPosition: IconPosition.center,
       ),
     ];
