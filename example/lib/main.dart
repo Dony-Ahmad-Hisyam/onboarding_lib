@@ -52,7 +52,7 @@ class _HomePageState extends State<HomePage> {
             interactionType: InteractionType.tap,
             position: TooltipPosition.auto,
             iconPosition: IconPosition.center,
-            hintIconColor: Colors.greenAccent,
+            hintIconColor: Color(0xFF6750A4),
             hintIcon: Icons.touch_app,
             onComplete: () {
               // Navigasi ke halaman game ketika step selesai
@@ -69,7 +69,7 @@ class _HomePageState extends State<HomePage> {
             interactionType: InteractionType.tap,
             position: TooltipPosition.auto,
             iconPosition: IconPosition.center,
-            hintIconColor: Colors.greenAccent,
+            hintIconColor: Color(0xFF6750A4),
             hintIcon: Icons.touch_app,
             onComplete: () {
               Navigator.of(context).push(
@@ -113,16 +113,21 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
+              Container(
+                height: 100,
+                width: 200,
+                color: Colors.green,
                 key: _mathBtnKey,
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const MathGameDemo(),
-                    ),
-                  );
-                },
-                child: const Text('Math Game Demo'),
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const MathGameDemo(),
+                      ),
+                    );
+                  },
+                  child: const Text('Math Game Demo'),
+                ),
               ),
               ElevatedButton(
                 key: _positionBtnKey,
