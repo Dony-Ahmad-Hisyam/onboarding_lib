@@ -1,9 +1,18 @@
-import 'package:example/match_game_demo.dart';
-import 'package:example/position_demo.dart';
+// ===============================
+// FILE: lib/main.dart
+// Simple app with GetX routes and auto-start onboarding on Home
+// ===============================
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:onboarding_lib/onboarding_lib.dart';
 
-void main() {
+import 'match_game_demo.dart';
+import 'position_demo.dart';
+import 'onboarding_center.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Get.put(OnboardingCenter());
   runApp(const MyApp());
 }
 
@@ -12,13 +21,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final observer = OnbRouteObserver();
+    return GetMaterialApp(
       title: 'Game Onboarding Demo',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.purple,
+        colorSchemeSeed: Colors.purple,
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      initialRoute: '/home',
+      getPages: [
+        GetPage(name: '/home', page: () => const HomePage()),
+        GetPage(name: '/match', page: () => const MatchGameDemo()),
+        GetPage(name: '/position', page: () => const PositionDemo()),
+      ],
+      navigatorObservers: [observer],
     );
   }
 }
@@ -34,59 +51,40 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey _mathBtnKey = GlobalKey(debugLabel: 'mathBtn');
   final GlobalKey _positionBtnKey = GlobalKey(debugLabel: 'positionBtn');
 
-  late OnboardingController _homeOnboarding;
-
   @override
   void initState() {
     super.initState();
+    // Register steps for this route's scope with a lazy builder
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('home', () => _buildHomeSteps(context));
+      // Start once when keys are ready (route observer may also start; it's safe due to "once")
+      // ignore: discarded_futures
+      OnboardingCenter.to.start(context, 'home', once: true);
+    });
+  }
 
-    final steps = [
+  List<OnboardingStep> _buildHomeSteps(BuildContext ctx) {
+    return [
       tapStep(
         id: 'open_math_game',
         targetKey: _mathBtnKey,
-        title: 'Main Math Game',
+        // Desentralisasi pemakaian: cukup definisikan step di fitur ini
+        description: 'Main Math Game',
         iconPosition: IconPosition.bottomRight,
-        description: 'Tap untuk mulai.',
-        onComplete: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const MathGameDemo()),
-          );
-        },
       ),
       tapStep(
         id: 'lihat_position_demo',
         targetKey: _positionBtnKey,
+        description: 'Coba Position Demo',
         iconPosition: IconPosition.bottomLeft,
-        title: 'Coba Position Demo',
-        description: 'Lihat posisi tooltip.',
-        onComplete: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PositionDemo()),
-          );
-        },
-      ),  
+      ),
     ];
-
-    _homeOnboarding = ob(steps: steps);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Mulai onboarding di halaman Home
-      _homeOnboarding.start();
-    });
-  }
-
-  @override
-  void dispose() {
-    _homeOnboarding.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final scaffold = Scaffold(
-      appBar: AppBar(
-        title: const Text('Game Onboarding Demo'),
-      ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Game Onboarding Demo')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -97,29 +95,19 @@ class _HomePageState extends State<HomePage> {
               color: Colors.green,
               key: _mathBtnKey,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const MathGameDemo(),
-                    ),
-                  );
-                },
-                child: const Text('Math Game Demo'),
+                onPressed: () => Get.toNamed('/match'),
+                child: const Text('Math/Match Game Demo'),
               ),
             ),
+            const SizedBox(height: 16),
             ElevatedButton(
               key: _positionBtnKey,
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const PositionDemo()),
-                );
-              },
+              onPressed: () => Get.toNamed('/position'),
               child: const Text('Position Demo'),
             ),
           ],
         ),
       ),
     );
-    return scaffold.withOnboarding(_homeOnboarding);
   }
 }

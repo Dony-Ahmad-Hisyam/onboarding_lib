@@ -1,14 +1,19 @@
+// ===============================
+// FILE: lib/match_game_demo.dart
+// Disesuaikan dari MathGameDemo milikmu, pola registrasi ke service
+// ===============================
 import 'package:flutter/material.dart';
 import 'package:onboarding_lib/onboarding_lib.dart';
+import 'onboarding_center.dart';
 
-class MathGameDemo extends StatefulWidget {
-  const MathGameDemo({Key? key}) : super(key: key);
+class MatchGameDemo extends StatefulWidget {
+  const MatchGameDemo({Key? key}) : super(key: key);
 
   @override
-  State<MathGameDemo> createState() => _MathGameDemoState();
+  State<MatchGameDemo> createState() => _MatchGameDemoState();
 }
 
-class _MathGameDemoState extends State<MathGameDemo> {
+class _MatchGameDemoState extends State<MatchGameDemo> {
   // Tap targets
   final GlobalKey _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
 
@@ -18,7 +23,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
   // Drag destinations
   final GlobalKey _dstEmptyKey = GlobalKey(debugLabel: 'dst_empty');
 
-  // Drag-drop progress (generic)
+  // Drag-drop progress
   String? _valueInEmpty; // for dst_empty
   String? _valueOnSeven; // for dst_7
   String? _valueOnTen; // for dst_10
@@ -26,18 +31,13 @@ class _MathGameDemoState extends State<MathGameDemo> {
   @override
   void initState() {
     super.initState();
+    // Register steps for this route's scope
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (!mounted) return;
-        final steps = _buildOnboardingSteps();
-        showOnboarding(context: context, steps: steps);
-      });
+      OnboardingCenter.to.register('match', _buildOnboardingSteps);
+      // Start once when keys are ready in this route
+      // ignore: discarded_futures
+      OnboardingCenter.to.start(context, 'match', once: true);
     });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   List<OnboardingStep> _buildOnboardingSteps() {
@@ -59,16 +59,24 @@ class _MathGameDemoState extends State<MathGameDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Math Game')),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              _buildGameSelection(),
-              Expanded(child: _buildMathGame()),
-            ],
+      appBar: AppBar(
+        title: const Text('Match Game'),
+        actions: [
+          IconButton(
+            tooltip: 'Bantuan',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () {
+              // Jalankan ulang onboarding untuk scope 'match'
+              // ignore: discarded_futures
+              OnboardingCenter.to.start(context, 'match', once: false);
+            },
           ),
-          OnboardingAutoStart(steps: _buildOnboardingSteps()),
+        ],
+      ),
+      body: Column(
+        children: [
+          _buildGameSelection(),
+          Expanded(child: _buildMathGame()),
         ],
       ),
     );
@@ -153,14 +161,9 @@ class _MathGameDemoState extends State<MathGameDemo> {
   }
 
   Widget _buildMathProblem() {
-    return Container(
+    return SizedBox(
       width: 300,
       height: 200,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.purple.shade100,
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -260,161 +263,59 @@ class _MathGameDemoState extends State<MathGameDemo> {
   }
 
   Widget _buildNumberOptions() {
+    Widget buildDraggable(String number, {GlobalKey? key}) {
+      final circle = Container(
+        width: 60,
+        height: 60,
+        decoration:
+            const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+        child: Center(
+          child: Text(number,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold)),
+        ),
+      );
+      final feedback = Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8),
+            ],
+          ),
+          child: Center(
+            child: Text(number,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ),
+      );
+      final child = key != null ? Container(key: key, child: circle) : circle;
+      return Draggable<String>(
+        data: number,
+        child: child,
+        childWhenDragging: Opacity(opacity: 0.2, child: child),
+        feedback: feedback,
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Source 3
-        Builder(builder: (context) {
-          final number = '3';
-          final circle = Container(
-            width: 60,
-            height: 60,
-            decoration:
-                const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-            child: Center(
-              child: Text(number,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold)),
-            ),
-          );
-          final feedback = Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.25), blurRadius: 8)
-                ],
-              ),
-              child: Center(
-                child: Text(number,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ),
-          );
-          final enabled = _valueInEmpty == null;
-          final circleWithKey = Container(key: _src3Key, child: circle);
-          return enabled
-              ? Draggable<String>(
-                  data: number,
-                  child: circleWithKey,
-                  childWhenDragging:
-                      Opacity(opacity: 0.2, child: circleWithKey),
-                  feedback: feedback,
-                )
-              : Opacity(opacity: 0.4, child: circleWithKey);
-        }),
+        // Source 3 (dipakai di onboarding)
+        buildDraggable('3', key: _src3Key),
         const SizedBox(width: 16),
-        // Source 4
-        Builder(builder: (context) {
-          final number = '4';
-          final circle = Container(
-            width: 60,
-            height: 60,
-            decoration:
-                const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-            child: Center(
-              child: Text(number,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold)),
-            ),
-          );
-          final feedback = Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.25), blurRadius: 8)
-                ],
-              ),
-              child: Center(
-                child: Text(number,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ),
-          );
-          final enabled = _valueOnTen == null;
-          final circleWithKey = Container(child: circle);
-          return enabled
-              ? Draggable<String>(
-                  data: number,
-                  child: circleWithKey,
-                  childWhenDragging:
-                      Opacity(opacity: 0.2, child: circleWithKey),
-                  feedback: feedback,
-                )
-              : Opacity(opacity: 0.4, child: circleWithKey);
-        }),
+        buildDraggable('4'),
         const SizedBox(width: 16),
-        // Source 2
-        Builder(builder: (context) {
-          final number = '2';
-          final circle = Container(
-            width: 60,
-            height: 60,
-            decoration:
-                const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-            child: Center(
-              child: Text(number,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold)),
-            ),
-          );
-          final feedback = Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.25), blurRadius: 8)
-                ],
-              ),
-              child: Center(
-                child: Text(number,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ),
-          );
-          final enabled = _valueOnSeven == null;
-          final circleWithKey = Container(child: circle);
-          return enabled
-              ? Draggable<String>(
-                  data: number,
-                  child: circleWithKey,
-                  childWhenDragging:
-                      Opacity(opacity: 0.2, child: circleWithKey),
-                  feedback: feedback,
-                )
-              : Opacity(opacity: 0.4, child: circleWithKey);
-        }),
+        buildDraggable('2'),
       ],
     );
   }

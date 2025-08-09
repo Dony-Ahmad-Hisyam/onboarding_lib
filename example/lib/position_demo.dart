@@ -1,3 +1,7 @@
+// ===============================
+// FILE: lib/position_demo.dart
+// Tetap seperti versi kamu, tanpa onboarding lokal
+// ===============================
 import 'package:flutter/material.dart';
 import 'package:onboarding_lib/onboarding_lib.dart';
 
@@ -44,7 +48,6 @@ class PositionDemo extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Title in the center
           Center(
             child: Text(
               title,
@@ -55,8 +58,6 @@ class PositionDemo extends StatelessWidget {
               ),
             ),
           ),
-
-          // Positioned icon
           PositionedHintIcon(
             position: position,
             color: color,

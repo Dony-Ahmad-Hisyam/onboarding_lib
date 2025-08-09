@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  get: ^4.7.2
+  get_storage: ^2.1.1
   onboarding_lib:
     path: ../
 
