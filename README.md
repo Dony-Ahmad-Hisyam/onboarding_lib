@@ -10,6 +10,9 @@ Fitur Utama
 - UI default sederhana: deskripsi statis di atas (header), tombol Skip/Next di bawah (aktif otomatis)
 - Deskripsi-first: title opsional, description wajib; header menampilkan "<step>. <description>"
 - API ringkas: tapStep, dragStep, ob, withOnboarding
+- Satu baris saja jika mau: showOnboarding(context: ..., steps: [...]) tanpa bungkus/Controller
+- Nol pemanggilan di layar: OnboardingAutoStart(steps: [...]) auto-jalan saat key siap
+- Satu overlay aktif saja: library mencegah overlay ganda secara otomatis
 - Best way sederhana: GlobalKey + Draggable/DragTarget (tanpa wrapper)
 - Alternatif opsional: ObDraggable/ObDragTarget dan binding via ID (tapStepById/dragStepById)
 - Kustomisasi penuh: warna overlay, padding target, gaya tooltip, dll.
@@ -40,7 +43,7 @@ Rekomendasi paling sederhana (tanpa ID, tanpa wrapper): GlobalKey + Draggable/Dr
 1. Tandai widget yang ingin di-highlight dengan GlobalKey
 
 ```dart
-final GlobalKey btnKey = GlobalKey();
+final GlobalKey btnKey = GlobalKey(); // Key yang akan di-highlight
 
 ElevatedButton(
   key: btnKey,
@@ -54,7 +57,7 @@ ElevatedButton(
 - Sumber (Draggable):
 
 ```dart
-final GlobalKey srcKey = GlobalKey();
+final GlobalKey srcKey = GlobalKey(); // Sumber drag
 
 Draggable<String>(
   key: srcKey,
@@ -68,7 +71,7 @@ Draggable<String>(
 - Tujuan (DragTarget):
 
 ```dart
-final GlobalKey dstKey = GlobalKey();
+final GlobalKey dstKey = GlobalKey(); // Tujuan drag
 
 DragTarget<String>(
   key: dstKey,
@@ -91,51 +94,76 @@ final steps = [
   tapStep(
     id: 'welcome',
     targetKey: btnKey,
-    description: 'Ketuk tombol ini untuk memulai.',
+    description: 'Ketuk tombol ini untuk memulai.', // Teks deskriptif utama
   ),
   dragStep(
     id: 'drag_4_to_10',
     sourceKey: srcKey,
     destinationKey: dstKey,
     description: 'Seret angka dari sumber ke lingkaran tujuan.',
-    // default drag: position = TooltipPosition.top,
-    // anchor = DragTooltipAnchor.destination
+  // Catatan:
+  // - position default drag = TooltipPosition.top
+  // - anchor default drag = DragTooltipAnchor.destination (tooltip dekat tujuan)
   ),
 ];
 ```
 
-4. Buat controller dengan ob(...)
+4a. Paling sederhana: panggil sekali (tanpa bungkus)
+
+```dart
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  // Memulai onboarding tanpa controller/bungkus
+  // Library akan membuat overlay dan membersihkan otomatis saat selesai/skip
+  showOnboarding(context: context, steps: steps);
+});
+```
+
+4b. Atau gunakan controller (opsional) jika perlu kontrol lebih
+
+4c. Zero-call di layar (auto-start saat key siap)
+
+```dart
+Stack(
+  children: [
+  YourScreenBody(...), // UI Anda
+  // Auto-start: akan menunggu semua key siap lalu memanggil overlay sekali
+  OnboardingAutoStart(steps: steps),
+  ],
+)
+```
 
 ```dart
 // ob() secara default:
 // - menampilkan header di atas (deskripsi-first)
 // - menampilkan bottom bar Skip/Next di bawah
 // - gaya header ramah anak: padding 15, margin samping kecil, font lebih besar
+// Gunakan ini jika Anda ingin pegang Controller (misal, untuk Start ulang manual)
 final controller = ob(
   steps: steps,
   overlayColor: Colors.black,
   overlayOpacity: 0.7,
   targetPadding: 8,
   onComplete: () {
-    // selesai onboarding
+  // selesai onboarding
   },
 );
 ```
 
-5. Bungkus root dengan withOnboarding(...)
+5. (Opsional) Bungkus root dengan withOnboarding(...) hanya jika Anda pakai controller
 
 ```dart
+// Bungkus UI hanya jika Anda menggunakan controller
 return Scaffold(
   appBar: AppBar(title: const Text('Contoh')),
   body: ...,
 ).withOnboarding(controller);
 ```
 
-6. Mulai onboarding (setelah layout siap)
+6. Mulai onboarding (jika pakai controller)
 
 ```dart
 WidgetsBinding.instance.addPostFrameCallback((_) {
-  controller.start();
+  controller.start(); // Mulai secara manual jika pakai controller
 });
 ```
 
@@ -167,6 +195,11 @@ Kustomisasi
   - headerFontSize (untuk teks utama header)
   - headerBackgroundColor, headerTextColor (khusus header)
 - targetPadding: jarak highlight dari target
+
+Catatan Penting (Jangan Dicampur)
+
+- Pada satu layar, jangan campur withOnboarding(...) dengan showOnboarding(...) atau OnboardingAutoStart(...).
+- Library sudah menjaga hanya satu overlay aktif; memanggil beberapa API sekaligus bisa membuat layar tampak lebih gelap.
 
 Best Practices
 
@@ -226,7 +259,7 @@ The simplest recommended path (no IDs, no wrappers): GlobalKey + Draggable/DragT
 1. Attach a GlobalKey to widgets to highlight
 
 ```dart
-final GlobalKey btnKey = GlobalKey();
+final GlobalKey btnKey = GlobalKey(); // Key to highlight
 ElevatedButton(key: btnKey, onPressed: () {}, child: const Text('Start'));
 ```
 
@@ -235,7 +268,7 @@ ElevatedButton(key: btnKey, onPressed: () {}, child: const Text('Start'));
 - Source (Draggable):
 
 ```dart
-final GlobalKey sourceKey = GlobalKey();
+final GlobalKey sourceKey = GlobalKey(); // Drag source
 
 Draggable<String>(
   key: sourceKey,
@@ -249,7 +282,7 @@ Draggable<String>(
 - Destination (DragTarget):
 
 ```dart
-final GlobalKey destKey = GlobalKey();
+final GlobalKey destKey = GlobalKey(); // Drag destination
 
 DragTarget<String>(
   key: destKey,
@@ -272,7 +305,7 @@ final steps = [
   tapStep(
     id: 'welcome',
     targetKey: btnKey,
-    description: 'Tap this button to get started.',
+    description: 'Tap this button to get started.', // Main descriptive text
   ),
   dragStep(
     id: 'drag_4_to_10',
@@ -283,7 +316,29 @@ final steps = [
 ];
 ```
 
-4. Create the controller
+4a. Easiest: fire it in one line (no wrapper)
+
+```dart
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  // Start onboarding without a controller/wrapper.
+  // The library inserts and later cleans up the overlay automatically.
+  showOnboarding(context: context, steps: steps);
+});
+```
+
+4b. Or, create the controller (optional) for more control
+
+4c. Zero-call on the screen (auto-start when keys are ready)
+
+```dart
+Stack(
+  children: [
+  YourScreenBody(...), // Your UI
+  // Auto-start: waits for all keys to be ready and fires once.
+  OnboardingAutoStart(steps: steps),
+  ],
+)
+```
 
 ```dart
 final controller = ob(
@@ -302,13 +357,13 @@ final controller = ob(
 );
 ```
 
-5. Wrap your root
+5. (Optional) Wrap your root only if you use the controller
 
 ```dart
 return Scaffold(...).withOnboarding(controller);
 ```
 
-6. Start after the first frame
+6. Start after the first frame (only when using the controller)
 
 ```dart
 WidgetsBinding.instance.addPostFrameCallback((_) => controller.start());
@@ -342,6 +397,11 @@ Customization
   - headerFontSize (for header main text)
   - headerBackgroundColor, headerTextColor (header-only overrides)
 - targetPadding adjusts highlight padding
+
+Important Note (Do Not Mix)
+
+- On a single screen, do not mix withOnboarding(...) with showOnboarding(...) or OnboardingAutoStart(...).
+- The library enforces a single active overlay; mixing APIs can make the screen appear darker if doubled.
 
 Visuals
 

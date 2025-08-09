@@ -9,6 +9,12 @@ import 'onboarding_key_store.dart';
 
 // Convenience builders to make onboarding calls simple and consistent
 
+// Global guard to ensure only one onboarding overlay is active at a time
+OverlayEntry? _activeOnboardingEntry;
+OnboardingController? _activeOnboardingController;
+
+bool onboardingIsActive() => _activeOnboardingEntry?.mounted == true;
+
 OnboardingStep tapStep({
   required String id,
   required GlobalKey targetKey,
@@ -169,4 +175,97 @@ OnboardingController ob({
 extension OnboardingOverlayX on Widget {
   Widget withOnboarding(OnboardingController controller) =>
       OnboardingOverlay(controller: controller, child: this);
+}
+
+/// Show onboarding without wrapping your app or holding a controller.
+/// This inserts a floating overlay entry that blocks background interactions
+/// and cleans itself up when onboarding completes or is skipped.
+OnboardingController showOnboarding({
+  required BuildContext context,
+  required List<OnboardingStep> steps,
+  Color overlayColor = Colors.black,
+  double overlayOpacity = 0.7,
+  double targetPadding = 8.0,
+  TooltipConfig tooltip = const TooltipConfig(
+    backgroundColor: Color(0xFF6750A4),
+    textColor: Colors.white,
+    maxWidth: 320,
+    padding: EdgeInsets.all(16),
+    headerAtTop: true,
+    showBottomBar: true,
+    headerMinHeight: 68,
+    headerBackgroundColor: Color(0xFFB5F5C9),
+    headerTextColor: Color(0xFF0D1B2A),
+    headerFontSize: 18,
+    headerPadding: EdgeInsets.all(15),
+    headerOuterMargin: EdgeInsets.symmetric(horizontal: 12),
+  ),
+  VoidCallback? onComplete,
+  VoidCallback? onSkip,
+}) {
+  // If already showing, reuse current controller to avoid stacking overlays
+  if (onboardingIsActive() && _activeOnboardingController != null) {
+    return _activeOnboardingController!;
+  }
+
+  // Clean up stale entry if any
+  if (_activeOnboardingEntry != null && _activeOnboardingEntry!.mounted) {
+    try {
+      _activeOnboardingEntry!.remove();
+    } catch (_) {}
+  }
+  if (_activeOnboardingController != null) {
+    try {
+      _activeOnboardingController!.dispose();
+    } catch (_) {}
+  }
+  _activeOnboardingEntry = null;
+  _activeOnboardingController = null;
+
+  final controller = OnboardingController(
+    config: OnboardingConfig(
+      steps: steps,
+      overlayColor: overlayColor,
+      overlayOpacity: overlayOpacity,
+      targetPadding: targetPadding,
+      tooltipConfig: tooltip,
+      onComplete: onComplete,
+      onSkip: onSkip,
+    ),
+  );
+
+  final overlay = Overlay.of(context, rootOverlay: true);
+
+  late OverlayEntry entry;
+  late VoidCallback cleanup;
+  late VoidCallback listener;
+
+  cleanup = () {
+    if (entry.mounted) entry.remove();
+    controller.removeListener(listener);
+    controller.dispose();
+  };
+
+  listener = () {
+    if (!controller.isVisible) {
+      cleanup();
+    }
+  };
+
+  entry = OverlayEntry(
+    maintainState: true,
+    builder: (ctx) => OnboardingOverlay(
+      controller: controller,
+      // Fullscreen dummy child to block background interactions
+      child: const SizedBox.expand(),
+    ),
+  );
+
+  controller.addListener(listener);
+  overlay.insert(entry);
+  _activeOnboardingEntry = entry;
+  _activeOnboardingController = controller;
+  // Start after insertion to ensure correct layout measurements
+  WidgetsBinding.instance.addPostFrameCallback((_) => controller.start());
+  return controller;
 }

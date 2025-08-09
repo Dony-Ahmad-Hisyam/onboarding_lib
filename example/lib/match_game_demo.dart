@@ -9,8 +9,6 @@ class MathGameDemo extends StatefulWidget {
 }
 
 class _MathGameDemoState extends State<MathGameDemo> {
-  late OnboardingController _onboardingController;
-
   // Tap targets
   final GlobalKey _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
 
@@ -28,68 +26,52 @@ class _MathGameDemoState extends State<MathGameDemo> {
   @override
   void initState() {
     super.initState();
-    _initOnboarding();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) _onboardingController.start();
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!mounted) return;
+        final steps = _buildOnboardingSteps();
+        showOnboarding(context: context, steps: steps);
       });
     });
   }
 
   @override
   void dispose() {
-    _onboardingController.dispose();
     super.dispose();
   }
 
-  void _initOnboarding() {
-    final steps = [
+  List<OnboardingStep> _buildOnboardingSteps() {
+    return [
       tapStep(
         id: 'select_game',
         targetKey: _gameSelectionKey,
         description: 'Choose The Mini-game',
       ),
-
-      // Drag 3 -> empty
       dragStep(
         id: 'drag_number1',
         sourceKey: _src3Key,
         destinationKey: _dstEmptyKey,
         description: 'Play, Learn and Earn Coins',
       ),
-      // Drag 2 -> 7
     ];
-
-    _onboardingController = ob(
-      steps: steps,
-      onComplete: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Onboarding completed! Great job!')),
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Math Game'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => _onboardingController.start(),
-          ),
-        ],
-      ),
-      body: Column(
+      appBar: AppBar(title: const Text('Math Game')),
+      body: Stack(
         children: [
-          _buildGameSelection(),
-          Expanded(child: _buildMathGame()),
+          Column(
+            children: [
+              _buildGameSelection(),
+              Expanded(child: _buildMathGame()),
+            ],
+          ),
+          OnboardingAutoStart(steps: _buildOnboardingSteps()),
         ],
       ),
-    ).withOnboarding(_onboardingController);
+    );
   }
 
   Widget _buildGameSelection() {

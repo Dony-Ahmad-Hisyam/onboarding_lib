@@ -13,6 +13,7 @@ export 'src/widgets/onboarding_tooltip.dart';
 export 'src/widgets/animated_hint_icon.dart';
 export 'src/widgets/positioned_hint_icon.dart';
 export 'src/widgets/ob_bind_id.dart';
+export 'src/widgets/onboarding_auto_start.dart';
 
 // Export utils/helpers
 export 'src/utils/shortcuts.dart';
