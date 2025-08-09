@@ -239,11 +239,27 @@ OnboardingController showOnboarding({
   late OverlayEntry entry;
   late VoidCallback cleanup;
   late VoidCallback listener;
+  bool cleaned = false;
 
   cleanup = () {
-    if (entry.mounted) entry.remove();
+    if (cleaned) return;
+    cleaned = true;
+    if (entry.mounted) {
+      try {
+        entry.remove();
+      } catch (_) {}
+    }
     controller.removeListener(listener);
-    controller.dispose();
+    _activeOnboardingEntry = null;
+    // Defer disposing the controller to avoid disposing during notifyListeners
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        controller.dispose();
+      } catch (_) {}
+      if (identical(_activeOnboardingController, controller)) {
+        _activeOnboardingController = null;
+      }
+    });
   };
 
   listener = () {

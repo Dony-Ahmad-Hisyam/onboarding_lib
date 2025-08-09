@@ -13,6 +13,7 @@ Fitur Utama
 - Satu baris saja jika mau: showOnboarding(context: ..., steps: [...]) tanpa bungkus/Controller
 - Nol pemanggilan di layar: OnboardingAutoStart(steps: [...]) auto-jalan saat key siap
 - Satu overlay aktif saja: library mencegah overlay ganda secara otomatis
+- Siap untuk aplikasi besar: init sekali di root + registrasi langkah per fitur dengan auto-start per-route
 - Best way sederhana: GlobalKey + Draggable/DragTarget (tanpa wrapper)
 - Alternatif opsional: ObDraggable/ObDragTarget dan binding via ID (tapStepById/dragStepById)
 - Kustomisasi penuh: warna overlay, padding target, gaya tooltip, dll.
@@ -35,6 +36,118 @@ Impor
 ```dart
 import 'package:onboarding_lib/onboarding_lib.dart';
 ```
+
+Quick Start (Sederhana seperti di contoh)
+
+Tiga langkah, tanpa wrapper/Controller:
+
+1. Root app: inisiasi service + pasang RouteObserver
+
+```dart
+// main.dart
+import 'package:get/get.dart';
+import 'onboarding_center.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Get.put(OnboardingCenter());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final observer = OnbRouteObserver();
+    return GetMaterialApp(
+      // ... routes ...
+      navigatorObservers: [observer],
+    );
+  }
+}
+```
+
+2. Home: beri GlobalKey pada target + registrasi langkah + start sekali
+
+```dart
+class HomePage extends StatefulWidget { const HomePage({super.key}); /* ... */ }
+class _HomePageState extends State<HomePage> {
+  final _mathBtnKey = GlobalKey(debugLabel: 'mathBtn');
+  final _positionBtnKey = GlobalKey(debugLabel: 'positionBtn');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('home', () => [
+        tapStep(
+          id: 'open_math_game',
+          targetKey: _mathBtnKey,
+          description: 'Main Math Game',
+          iconPosition: IconPosition.bottomRight,
+        ),
+        tapStep(
+          id: 'lihat_position_demo',
+          targetKey: _positionBtnKey,
+          description: 'Coba Position Demo',
+          iconPosition: IconPosition.bottomLeft,
+        ),
+      ]);
+      OnboardingCenter.to.start(context, 'home', once: true);
+    });
+  }
+  // ... build() menempelkan key ke tombol ...
+}
+```
+
+3. Halaman fitur (Match): registrasi lokal + start sekali + tombol bantuan
+
+```dart
+class MatchGameDemo extends StatefulWidget { const MatchGameDemo({super.key}); /* ... */ }
+class _MatchGameDemoState extends State<MatchGameDemo> {
+  final _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
+  final _src3Key = GlobalKey(debugLabel: 'src_3');
+  final _dstEmptyKey = GlobalKey(debugLabel: 'dst_empty');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('match', () => [
+        tapStep(
+          id: 'select_game',
+          targetKey: _gameSelectionKey,
+          description: 'Choose The Mini-game',
+        ),
+        dragStep(
+          id: 'drag_number1',
+          sourceKey: _src3Key,
+          destinationKey: _dstEmptyKey,
+          description: 'Play, Learn and Earn Coins',
+        ),
+      ]);
+      OnboardingCenter.to.start(context, 'match', once: true);
+    });
+  }
+
+  // AppBar help icon untuk menjalankan ulang
+  PreferredSizeWidget buildAppBar(BuildContext context) => AppBar(
+    title: const Text('Match Game'),
+    actions: [
+      IconButton(
+        icon: const Icon(Icons.help_outline),
+        tooltip: 'Bantuan',
+        onPressed: () => OnboardingCenter.to.start(context, 'match', once: false),
+      ),
+    ],
+  );
+}
+```
+
+Catatan:
+
+- Cukup pakai GlobalKey pada widget target/sumber; tidak perlu wrapper khusus.
+- Library otomatis menjaga hanya satu overlay aktif; jangan mencampur withOnboarding/showOnboarding/auto-start pada layar yang sama.
 
 Panduan Lengkap (Indonesia)
 
@@ -208,6 +321,76 @@ Best Practices
 - Untuk drag, biarkan anchor tooltip di destination agar tidak menutupi koridor drag.
 - Hindari rebuild yang mengganti GlobalKey saat onboarding aktif.
 
+Untuk Aplikasi Besar (disarankan)
+
+- Inti ide: Inisiasi sekali di root, registrasi langkah desentralisasi di tiap fitur, dan auto-start berdasarkan route yang aktif.
+- Kelebihan: Developer fitur hanya menambahkan GlobalKey + steps; tidak perlu memegang controller/wrapper.
+
+1. Root: service + RouteObserver (contoh dengan GetX)
+
+```dart
+// main.dart (ringkas)
+import 'onboarding_center.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Get.put(OnboardingCenter());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  // ...
+  @override
+  Widget build(BuildContext context) {
+    final observer = OnbRouteObserver();
+    return GetMaterialApp(
+      // ...routes...
+      navigatorObservers: [observer],
+    );
+  }
+}
+```
+
+2. Fitur: registrasi langkah secara lokal (lazy) + opsional start sekali
+
+```dart
+// SomePage.dart
+class SomePage extends StatefulWidget { /* ... */ }
+class _SomePageState extends State<SomePage> {
+  final _btnKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('some', () => [
+        tapStep(id: 'tap_btn', targetKey: _btnKey, description: 'Tap tombol ini'),
+      ]);
+      // Opsional: mulai sekali untuk route ini jika siap
+      OnboardingCenter.to.start(context, 'some', once: true);
+    });
+  }
+  // ...build()...
+}
+```
+
+3. Help icon untuk memulai ulang onboarding secara manual
+
+```dart
+AppBar(
+  title: const Text('Halaman'),
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.help_outline),
+      tooltip: 'Bantuan',
+      onPressed: () => OnboardingCenter.to.start(context, 'some', once: false),
+    ),
+  ],
+)
+```
+
+Catatan trigger: gunakan salah satu mekanisme (observer atau auto-start widget) per route. Bila ingin keduanya, pastikan pakai once: true agar tidak dobel.
+
 Troubleshooting
 
 - Tooltip menutupi target/koridor: default drag menempatkan tooltip dekat destination dan menghindari area konflik; sesuaikan position bila perlu.
@@ -253,6 +436,116 @@ Lihat folder `example/` untuk contoh Math Game satu file (tanpa ID & tanpa wrapp
 ---
 
 Complete Tutorial (English)
+
+Quick Start (as simple as the example)
+
+Three steps, no wrappers/controllers:
+
+1. App root: initialize the service + add a RouteObserver
+
+```dart
+// main.dart
+import 'package:get/get.dart';
+import 'onboarding_center.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Get.put(OnboardingCenter());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final observer = OnbRouteObserver();
+    return GetMaterialApp(
+      // ... routes ...
+      navigatorObservers: [observer],
+    );
+  }
+}
+```
+
+2. Home page: attach GlobalKeys + register steps + start once
+
+```dart
+class HomePage extends StatefulWidget { const HomePage({super.key}); /* ... */ }
+class _HomePageState extends State<HomePage> {
+  final _mathBtnKey = GlobalKey(debugLabel: 'mathBtn');
+  final _positionBtnKey = GlobalKey(debugLabel: 'positionBtn');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('home', () => [
+        tapStep(
+          id: 'open_math_game',
+          targetKey: _mathBtnKey,
+          description: 'Main Math Game',
+          iconPosition: IconPosition.bottomRight,
+        ),
+        tapStep(
+          id: 'lihat_position_demo',
+          targetKey: _positionBtnKey,
+          description: 'Coba Position Demo',
+          iconPosition: IconPosition.bottomLeft,
+        ),
+      ]);
+      OnboardingCenter.to.start(context, 'home', once: true);
+    });
+  }
+}
+```
+
+3. Feature page (Match): local registration + one-time start + help icon
+
+```dart
+class MatchGameDemo extends StatefulWidget { const MatchGameDemo({super.key}); /* ... */ }
+class _MatchGameDemoState extends State<MatchGameDemo> {
+  final _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
+  final _src3Key = GlobalKey(debugLabel: 'src_3');
+  final _dstEmptyKey = GlobalKey(debugLabel: 'dst_empty');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('match', () => [
+        tapStep(
+          id: 'select_game',
+          targetKey: _gameSelectionKey,
+          description: 'Choose The Mini-game',
+        ),
+        dragStep(
+          id: 'drag_number1',
+          sourceKey: _src3Key,
+          destinationKey: _dstEmptyKey,
+          description: 'Play, Learn and Earn Coins',
+        ),
+      ]);
+      OnboardingCenter.to.start(context, 'match', once: true);
+    });
+  }
+
+  PreferredSizeWidget buildAppBar(BuildContext context) => AppBar(
+    title: const Text('Match Game'),
+    actions: [
+      IconButton(
+        icon: const Icon(Icons.help_outline),
+        tooltip: 'Help',
+        onPressed: () => OnboardingCenter.to.start(context, 'match', once: false),
+      ),
+    ],
+  );
+}
+```
+
+Notes:
+
+- Just use GlobalKeys on the target/source widgets; no special wrappers are needed.
+- The library enforces a single active overlay; do not mix withOnboarding/showOnboarding/auto-start on the same screen.
 
 The simplest recommended path (no IDs, no wrappers): GlobalKey + Draggable/DragTarget + tapStep/dragStep.
 
@@ -414,6 +707,70 @@ Best Practices
 - Keep GlobalKeys stable for all highlighted widgets.
 - For drag flows, prefer anchoring near the destination to avoid covering the corridor.
 - Avoid rebuilding widgets that recreate GlobalKeys during onboarding.
+
+Large Apps (recommended)
+
+- Core idea: Initialize once at app root, register steps per feature locally, and auto-start per active route.
+- Benefits: Feature devs only add GlobalKeys + steps; no controller/wrapper to manage.
+
+1. Root: service + RouteObserver (GetX example)
+
+```dart
+// main.dart (short)
+import 'onboarding_center.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Get.put(OnboardingCenter());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final observer = OnbRouteObserver();
+    return GetMaterialApp(
+      // ...routes...
+      navigatorObservers: [observer],
+    );
+  }
+}
+```
+
+2. Feature: local (lazy) registration + optional one-time start
+
+```dart
+class SomePage extends StatefulWidget { /* ... */ }
+class _SomePageState extends State<SomePage> {
+  final _btnKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('some', () => [
+        tapStep(id: 'tap_btn', targetKey: _btnKey, description: 'Tap this button'),
+      ]);
+      OnboardingCenter.to.start(context, 'some', once: true); // optional
+    });
+  }
+}
+```
+
+3. Help icon to restart onboarding
+
+```dart
+AppBar(
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.help_outline),
+      onPressed: () => OnboardingCenter.to.start(context, 'some', once: false),
+    ),
+  ],
+)
+```
+
+Trigger note: pick a single trigger per route (observer or auto-start widget). If combining, set once: true to avoid duplicates.
 
 Troubleshooting
 
