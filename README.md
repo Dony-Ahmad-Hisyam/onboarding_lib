@@ -17,40 +17,102 @@ Fitur Utama
 - Best way sederhana: GlobalKey + Draggable/DragTarget (tanpa wrapper)
 - Alternatif opsional: ObDraggable/ObDragTarget dan binding via ID (tapStepById/dragStepById)
 - Kustomisasi penuh: warna overlay, padding target, gaya tooltip, dll.
-- Koridor drag berbentuk kapsul halus dengan border dan tint
-- Tanpa halo/arrow pada koridor; fokus bersih pada kapsul saja
-- Navigasi: langkah pertama menampilkan Skip (kiri), langkah berikutnya Back; tombol kanan Next berubah jadi Finish di langkah terakhir. Indikator progres hanya tampil di bawah Back/Next.
-- Interaksi latar belakang diblokir saat onboarding aktif (tap/drag hanya untuk langkah berjalan)
 
-Instalasi
-Tambahkan ke pubspec.yaml aplikasi Anda:
+# onboarding_lib
 
-```yaml
-dependencies:
-  onboarding_lib:
-    path: ../path/to/onboarding_lib
-```
+Perpustakaan Flutter untuk onboarding interaktif (tap & drag) dengan overlay highlight dan tooltip cerdas.
 
-Impor
+—
 
-```dart
-import 'package:onboarding_lib/onboarding_lib.dart';
-```
+Ringkas (Indonesia)
 
-Quick Start (Sederhana seperti di contoh)
+Tujuan: Implementasi sesederhana di example, cocok untuk aplikasi besar.
 
-Tiga langkah, tanpa wrapper/Controller:
+Langkah 1 — Tambah dependency
 
-1. Root app: inisiasi service + pasang RouteObserver
+Tambahkan paket ini di pubspec.yaml aplikasi Anda.
+
+Langkah 2 — Service pusat + RouteObserver (sekali di app)
 
 ```dart
-// main.dart
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'onboarding_center.dart';
+import 'package:onboarding_lib/onboarding_lib.dart';
 
+class OnboardingCenter extends GetxService {
+  static OnboardingCenter get to => Get.find<OnboardingCenter>();
+
+  final _registrars = <String, List<OnboardingStep> Function()>{}.obs;
+  final _startedOnce = <String>{}.obs; // cegah dobel per scope
+
+  void register(String scope, List<OnboardingStep> Function() builder) {
+    _registrars[scope] = builder;
+  }
+
+  bool has(String scope) => _registrars.containsKey(scope);
+
+  Future<void> start(BuildContext context, String scope, {bool once = true}) async {
+    if (once && _startedOnce.contains(scope)) return;
+    final builder = _registrars[scope];
+    if (builder == null) return;
+    final steps = builder();
+    if (steps.isEmpty) return;
+
+    const int maxPolls = 60;
+    const Duration pollInterval = Duration(milliseconds: 120);
+    for (int i = 0; i < maxPolls; i++) {
+      if (_allKeysReady(steps)) {
+        showOnboarding(context: context, steps: steps); // guard overlay tunggal ada di lib
+        _startedOnce.add(scope);
+        return;
+      }
+      await Future.delayed(pollInterval);
+    }
+  }
+
+  bool _allKeysReady(List<OnboardingStep> steps) {
+    for (final s in steps) {
+      if (s.targetKey.currentContext == null) return false;
+      if (s.destinationKey != null && s.destinationKey!.currentContext == null) return false;
+    }
+    return true;
+  }
+}
+
+class OnbRouteObserver extends RouteObserver<PageRoute<dynamic>> {
+  @override
+  void didPush(Route route, Route? previousRoute) {
+    super.didPush(route, previousRoute);
+    _maybeStart(route);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    if (newRoute != null) _maybeStart(newRoute);
+  }
+
+  void _maybeStart(Route route) {
+    final name = route.settings.name;
+    if (name == null || name.isEmpty || name == Navigator.defaultRouteName) return;
+    final scope = name.startsWith('/') ? name.substring(1) : name;
+    final ctx = route.navigator?.context;
+    if (ctx == null) return;
+    if (OnboardingCenter.to.has(scope)) {
+      // ignore: discarded_futures
+      OnboardingCenter.to.start(ctx, scope, once: true);
+    }
+  }
+}
+```
+
+Langkah 3 — Inisiasi di root app
+
+```dart
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Get.put(OnboardingCenter());
+  Get.put(OnboardingCenter()); // init sekali
   runApp(const MyApp());
 }
 
@@ -67,7 +129,7 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-2. Home: beri GlobalKey pada target + registrasi langkah + start sekali
+Langkah 4 — Registrasi langkah di tiap fitur (desentralisasi)
 
 ```dart
 class HomePage extends StatefulWidget { const HomePage({super.key}); /* ... */ }
@@ -96,11 +158,11 @@ class _HomePageState extends State<HomePage> {
       OnboardingCenter.to.start(context, 'home', once: true);
     });
   }
-  // ... build() menempelkan key ke tombol ...
+  // ... tempel key pada widget target di build() ...
 }
 ```
 
-3. Halaman fitur (Match): registrasi lokal + start sekali + tombol bantuan
+Langkah 5 — Halaman fitur dengan drag (contoh Match) + tombol bantuan (opsional)
 
 ```dart
 class MatchGameDemo extends StatefulWidget { const MatchGameDemo({super.key}); /* ... */ }
@@ -130,44 +192,195 @@ class _MatchGameDemoState extends State<MatchGameDemo> {
     });
   }
 
-  // AppBar help icon untuk menjalankan ulang
-  PreferredSizeWidget buildAppBar(BuildContext context) => AppBar(
-    title: const Text('Match Game'),
-    actions: [
-      IconButton(
-        icon: const Icon(Icons.help_outline),
-        tooltip: 'Bantuan',
-        onPressed: () => OnboardingCenter.to.start(context, 'match', once: false),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Match Game'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Bantuan',
+            onPressed: () => OnboardingCenter.to.start(context, 'match', once: false),
+          ),
+        ],
       ),
-    ],
-  );
+      // ... body ...
+    );
+  }
 }
 ```
 
-Catatan:
+Catatan Penting
 
-- Cukup pakai GlobalKey pada widget target/sumber; tidak perlu wrapper khusus.
-- Library otomatis menjaga hanya satu overlay aktif; jangan mencampur withOnboarding/showOnboarding/auto-start pada layar yang sama.
+- Jangan campur beberapa pemicu di satu layar (withOnboarding + showOnboarding + OnboardingAutoStart). Pilih salah satu. Library sudah mengawal satu overlay aktif.
+- Deskripsi-first: title opsional, description wajib. Header tampil di atas; bottom bar Skip/Back/Next otomatis.
+- Jika overlay tidak muncul: pastikan GlobalKey menempel ke widget yang ter-render; scope sama dengan nama route (tanpa '/'); panggil start setelah frame pertama.
 
-Panduan Lengkap (Indonesia)
+Alternatif Ringkas
 
-Rekomendasi paling sederhana (tanpa ID, tanpa wrapper): GlobalKey + Draggable/DragTarget + tapStep/dragStep.
-
-1. Tandai widget yang ingin di-highlight dengan GlobalKey
+- One-liner langsung tanpa service/observer (untuk layar kecil/sederhana)
 
 ```dart
-final GlobalKey btnKey = GlobalKey(); // Key yang akan di-highlight
-
-ElevatedButton(
-  key: btnKey,
-  onPressed: () {},
-  child: const Text('Mulai'),
-)
+final steps = [ /* tapStep/dragStep */ ];
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  showOnboarding(context: context, steps: steps);
+});
 ```
 
-2. Untuk drag & drop, pakai Draggable/DragTarget biasa dengan GlobalKey
+- Zero-call di layar (auto-start saat key siap)
 
-- Sumber (Draggable):
+```dart
+Stack(children: [
+  YourScreenBody(),
+  OnboardingAutoStart(steps: steps),
+]);
+```
+
+—
+
+Quick Start (English)
+
+Goal: Match the simple example pattern; great for large apps.
+
+Step 1 — Add dependency
+
+Add this package in your app's pubspec.yaml.
+
+Step 2 — Central service + RouteObserver (once per app)
+
+```dart
+// Same OnboardingCenter and OnbRouteObserver as above
+```
+
+Step 3 — Initialize at app root
+
+```dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Get.put(OnboardingCenter());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final observer = OnbRouteObserver();
+    return GetMaterialApp(
+      // ... routes ...
+      navigatorObservers: [observer],
+    );
+  }
+}
+```
+
+Step 4 — Register steps per feature (decentralized)
+
+```dart
+class HomePage extends StatefulWidget { const HomePage({super.key}); }
+class _HomePageState extends State<HomePage> {
+  final _mathBtnKey = GlobalKey(debugLabel: 'mathBtn');
+  final _positionBtnKey = GlobalKey(debugLabel: 'positionBtn');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('home', () => [
+        tapStep(
+          id: 'open_math_game',
+          targetKey: _mathBtnKey,
+          description: 'Main Math Game',
+          iconPosition: IconPosition.bottomRight,
+        ),
+        tapStep(
+          id: 'lihat_position_demo',
+          targetKey: _positionBtnKey,
+          description: 'Coba Position Demo',
+          iconPosition: IconPosition.bottomLeft,
+        ),
+      ]);
+      OnboardingCenter.to.start(context, 'home', once: true);
+    });
+  }
+}
+```
+
+Step 5 — Feature page with drag (Match) + optional help button
+
+```dart
+class MatchGameDemo extends StatefulWidget { const MatchGameDemo({super.key}); }
+class _MatchGameDemoState extends State<MatchGameDemo> {
+  final _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
+  final _src3Key = GlobalKey(debugLabel: 'src_3');
+  final _dstEmptyKey = GlobalKey(debugLabel: 'dst_empty');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OnboardingCenter.to.register('match', () => [
+        tapStep(
+          id: 'select_game',
+          targetKey: _gameSelectionKey,
+          description: 'Choose The Mini-game',
+        ),
+        dragStep(
+          id: 'drag_number1',
+          sourceKey: _src3Key,
+          destinationKey: _dstEmptyKey,
+          description: 'Play, Learn and Earn Coins',
+        ),
+      ]);
+      OnboardingCenter.to.start(context, 'match', once: true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Match Game'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Help',
+            onPressed: () => OnboardingCenter.to.start(context, 'match', once: false),
+          ),
+        ],
+      ),
+      // ... body ...
+    );
+  }
+}
+```
+
+Important Notes
+
+- Do not mix multiple triggers on the same screen (withOnboarding + showOnboarding + OnboardingAutoStart). Choose one. The library enforces a single active overlay.
+- Description-first: title is optional; header at the top; bottom bar Skip/Back/Next auto-enabled.
+- If the overlay doesn’t appear: ensure GlobalKeys are attached to visible widgets; scope matches the route name (without '/'); call start after the first frame.
+
+Quick Alternatives
+
+- One-liner without service/observer (for small/simple screens)
+
+```dart
+final steps = [ /* tapStep/dragStep */ ];
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  showOnboarding(context: context, steps: steps);
+});
+```
+
+- Zero-call on a screen (auto-start when keys are ready)
+
+```dart
+Stack(children: [
+  YourScreenBody(),
+  OnboardingAutoStart(steps: steps),
+]);
+```
 
 ```dart
 final GlobalKey srcKey = GlobalKey(); // Sumber drag
