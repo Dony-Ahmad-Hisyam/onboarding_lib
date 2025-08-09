@@ -23,6 +23,10 @@ class TooltipConfig {
   final double? headerHeight; // fixed height for header card (overrides min)
   final Color? headerBorderColor; // optional border color
   final double headerBorderWidth; // border width
+  final Color? headerBackgroundColor; // header bg override
+  final Color? headerTextColor; // header text override
+  final double? headerFontSize; // header main text font size
+  final EdgeInsets headerOuterMargin; // outer margin for header card
 
   const TooltipConfig({
     this.backgroundColor = const Color(0xFF333333),
@@ -43,6 +47,10 @@ class TooltipConfig {
     this.headerHeight,
     this.headerBorderColor,
     this.headerBorderWidth = 1.5,
+    this.headerBackgroundColor,
+    this.headerTextColor,
+    this.headerFontSize,
+    this.headerOuterMargin = const EdgeInsets.symmetric(horizontal: 12),
   });
 }
 

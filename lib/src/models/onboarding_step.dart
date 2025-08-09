@@ -40,8 +40,8 @@ class OnboardingStep {
   /// The interaction type required to complete this step
   final InteractionType interactionType;
 
-  /// Title text to display in the tooltip
-  final String title;
+  /// Optional title text to display in the tooltip
+  final String? title;
 
   /// Description text to display in the tooltip
   final String description;
@@ -88,7 +88,7 @@ class OnboardingStep {
   const OnboardingStep({
     required this.id,
     required this.targetKey,
-    required this.title,
+    this.title,
     required this.description,
     this.destinationKey,
     this.interactionType = InteractionType.tap,

@@ -13,17 +13,12 @@ class _MathGameDemoState extends State<MathGameDemo> {
 
   // Tap targets
   final GlobalKey _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
-  final GlobalKey _mathProblemKey = GlobalKey(debugLabel: 'mathProblemKey');
 
   // Drag sources
   final GlobalKey _src3Key = GlobalKey(debugLabel: 'src_3');
-  final GlobalKey _src4Key = GlobalKey(debugLabel: 'src_4');
-  final GlobalKey _src2Key = GlobalKey(debugLabel: 'src_2');
 
   // Drag destinations
   final GlobalKey _dstEmptyKey = GlobalKey(debugLabel: 'dst_empty');
-  final GlobalKey _dst7Key = GlobalKey(debugLabel: 'dst_7');
-  final GlobalKey _dst10Key = GlobalKey(debugLabel: 'dst_10');
 
   // Drag-drop progress (generic)
   String? _valueInEmpty; // for dst_empty
@@ -53,42 +48,17 @@ class _MathGameDemoState extends State<MathGameDemo> {
       tapStep(
         id: 'select_game',
         targetKey: _gameSelectionKey,
-        title: 'Choose a Mini-game',
-        description:
-            'Tap on this game selector to start playing and learning math concepts. This is your first step!',
+        description: 'Choose The Mini-game',
       ),
-      tapStep(
-        id: 'math_problem',
-        targetKey: _mathProblemKey,
-        title: 'Play, Learn and Earn Coins',
-        description:
-            'This section shows your current math problem. Solve math problems to earn coins and progress through the levels.',
-      ),
+
       // Drag 3 -> empty
       dragStep(
         id: 'drag_number1',
         sourceKey: _src3Key,
         destinationKey: _dstEmptyKey,
-        title: 'Drag the Number',
-        description:
-            'Drag the number from here to the empty circle to complete the equation.',
+        description: 'Play, Learn and Earn Coins',
       ),
       // Drag 2 -> 7
-      dragStep(
-        id: 'drag_number2',
-        sourceKey: _src2Key,
-        destinationKey: _dst7Key,
-        title: 'Drag the Number',
-        description: 'Drag the correct number into the circle.',
-      ),
-      // Drag 4 -> 10
-      dragStep(
-        id: 'drag_number3',
-        sourceKey: _src4Key,
-        destinationKey: _dst10Key,
-        title: 'Drag the Number',
-        description: 'Drag the correct number into the circle.',
-      ),
     ];
 
     _onboardingController = ob(
@@ -170,29 +140,32 @@ class _MathGameDemoState extends State<MathGameDemo> {
         color: Colors.blue.shade100,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            key: _mathProblemKey,
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade300,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade300,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
               ),
+              child: Text('2. Play, Learn and Earn Coins',
+                  style: Theme.of(context).textTheme.titleLarge),
             ),
-            child: Text('2. Play, Learn and Earn Coins',
-                style: Theme.of(context).textTheme.titleLarge),
-          ),
-          const SizedBox(height: 32),
-          _buildMathProblem(),
-          const Spacer(),
-          _buildNumberOptions(),
-          const SizedBox(height: 26),
-        ],
+            const SizedBox(height: 24),
+            _buildMathProblem(),
+            const SizedBox(height: 40),
+            _buildNumberOptions(),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
@@ -214,7 +187,6 @@ class _MathGameDemoState extends State<MathGameDemo> {
             children: [
               // Destination 10
               DragTarget<String>(
-                key: _dst10Key,
                 onWillAccept: (d) => d == '4' && _valueOnTen == null,
                 onAccept: (d) => setState(() => _valueOnTen = d),
                 builder: (context, cand, _) {
@@ -234,7 +206,6 @@ class _MathGameDemoState extends State<MathGameDemo> {
             children: [
               // Destination 7
               DragTarget<String>(
-                key: _dst7Key,
                 onWillAccept: (d) => d == '2' && _valueOnSeven == null,
                 onAccept: (d) => setState(() => _valueOnSeven = d),
                 builder: (context, cand, _) {
@@ -400,7 +371,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
             ),
           );
           final enabled = _valueOnTen == null;
-          final circleWithKey = Container(key: _src4Key, child: circle);
+          final circleWithKey = Container(child: circle);
           return enabled
               ? Draggable<String>(
                   data: number,
@@ -451,7 +422,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
             ),
           );
           final enabled = _valueOnSeven == null;
-          final circleWithKey = Container(key: _src2Key, child: circle);
+          final circleWithKey = Container(child: circle);
           return enabled
               ? Draggable<String>(
                   data: number,

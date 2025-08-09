@@ -62,17 +62,19 @@ class OnboardingTooltip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        step.title,
-                        style: _getResponsiveTitleStyle(screenWidth, config),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: _getResponsiveSpacing(screenWidth, 8)),
+                      if (step.title != null && step.title!.trim().isNotEmpty)
+                        Text(
+                          step.title!,
+                          style: _getResponsiveTitleStyle(screenWidth, config),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (step.title != null && step.title!.trim().isNotEmpty)
+                        SizedBox(height: _getResponsiveSpacing(screenWidth, 8)),
                       Text(
                         step.description,
                         style:
-                            _getResponsiveDescriptionStyle(screenWidth, config),
+                            _getEnhancedDescriptionStyle(screenWidth, config),
                         maxLines: 8,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -139,6 +141,25 @@ class OnboardingTooltip extends StatelessWidget {
           fontSize: fontSize,
           height: 1.4,
         );
+  }
+
+  // Enhanced description style for description-first UX
+  TextStyle _getEnhancedDescriptionStyle(double screenWidth, dynamic config) {
+    double fontSize;
+    if (screenWidth < 360) {
+      fontSize = 14; // larger than default
+    } else if (screenWidth < 400) {
+      fontSize = 15;
+    } else {
+      fontSize = 16; // emphasize description
+    }
+
+    final base = _getResponsiveDescriptionStyle(screenWidth, config);
+    return base.copyWith(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w600,
+      height: 1.35,
+    );
   }
 
   double _getResponsiveSpacing(double screenWidth, double defaultSpacing) {

@@ -44,9 +44,9 @@ class _HomePageState extends State<HomePage> {
       tapStep(
         id: 'open_math_game',
         targetKey: _mathBtnKey,
-        title: 'Mulai dari sini',
-        description:
-            'Tap tombol ini untuk membuka Math Game. Onboarding akan memandu kamu di halaman berikutnya.',
+        title: 'Main Math Game',
+        iconPosition: IconPosition.bottomRight,
+        description: 'Tap untuk mulai.',
         onComplete: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const MathGameDemo()),
@@ -56,14 +56,15 @@ class _HomePageState extends State<HomePage> {
       tapStep(
         id: 'lihat_position_demo',
         targetKey: _positionBtnKey,
-        title: 'Atau coba Position Demo',
-        description: 'Kamu juga bisa membuka demo posisi tooltip di sini.',
+        iconPosition: IconPosition.bottomLeft,
+        title: 'Coba Position Demo',
+        description: 'Lihat posisi tooltip.',
         onComplete: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const PositionDemo()),
           );
         },
-      ),
+      ),  
     ];
 
     _homeOnboarding = ob(steps: steps);

@@ -7,13 +7,16 @@ Fitur Utama
 - Highlight langsung terlihat di langkah pertama
 - Tooltip cerdas: menghindari area highlight, koridor drag, dan node sumber/tujuan
 - Drag & drop generik (payload apa pun)
-- UI default sederhana: deskripsi statis di atas, tombol Skip/Next di bawah (aktif otomatis)
+- UI default sederhana: deskripsi statis di atas (header), tombol Skip/Next di bawah (aktif otomatis)
+- Deskripsi-first: title opsional, description wajib; header menampilkan "<step>. <description>"
 - API ringkas: tapStep, dragStep, ob, withOnboarding
 - Best way sederhana: GlobalKey + Draggable/DragTarget (tanpa wrapper)
 - Alternatif opsional: ObDraggable/ObDragTarget dan binding via ID (tapStepById/dragStepById)
 - Kustomisasi penuh: warna overlay, padding target, gaya tooltip, dll.
 - Koridor drag berbentuk kapsul halus dengan border dan tint
+- Tanpa halo/arrow pada koridor; fokus bersih pada kapsul saja
 - Navigasi: langkah pertama menampilkan Skip (kiri), langkah berikutnya Back; tombol kanan Next berubah jadi Finish di langkah terakhir. Indikator progres hanya tampil di bawah Back/Next.
+- Interaksi latar belakang diblokir saat onboarding aktif (tap/drag hanya untuk langkah berjalan)
 
 Instalasi
 Tambahkan ke pubspec.yaml aplikasi Anda:
@@ -84,17 +87,16 @@ DragTarget<String>(
 
 ```dart
 final steps = [
+  // Title opsional; cukup isi description untuk tampilan header
   tapStep(
     id: 'welcome',
     targetKey: btnKey,
-    title: 'Mulai',
     description: 'Ketuk tombol ini untuk memulai.',
   ),
   dragStep(
     id: 'drag_4_to_10',
     sourceKey: srcKey,
     destinationKey: dstKey,
-    title: 'Seret Angka',
     description: 'Seret angka dari sumber ke lingkaran tujuan.',
     // default drag: position = TooltipPosition.top,
     // anchor = DragTooltipAnchor.destination
@@ -105,8 +107,10 @@ final steps = [
 4. Buat controller dengan ob(...)
 
 ```dart
-// ob() sekarang secara default menampilkan header di atas
-// dan bottom bar Skip/Next di bawah.
+// ob() secara default:
+// - menampilkan header di atas (deskripsi-first)
+// - menampilkan bottom bar Skip/Next di bawah
+// - gaya header ramah anak: padding 15, margin samping kecil, font lebih besar
 final controller = ob(
   steps: steps,
   overlayColor: Colors.black,
@@ -153,7 +157,15 @@ Kustomisasi
 
 - TooltipPosition: top, bottom, left, right, auto
 - DragTooltipAnchor: auto, source, destination (default drag: destination)
-- OnboardingConfig.tooltipConfig: atur warna, teks, maxWidth, padding, margin, borderRadius, dsb.
+- OnboardingConfig.tooltipConfig:
+  - backgroundColor, textColor, maxWidth, borderRadius, padding (untuk tooltip)
+  - headerAtTop (default: true)
+  - showBottomBar (default: true)
+  - headerPadding (default: EdgeInsets.all(15))
+  - headerOuterMargin (default: EdgeInsets.symmetric(horizontal: 12))
+  - headerMinHeight (default: 68), headerHeight (opsional), headerWidth (opsional)
+  - headerFontSize (untuk teks utama header)
+  - headerBackgroundColor, headerTextColor (khusus header)
 - targetPadding: jarak highlight dari target
 
 Best Practices
@@ -191,8 +203,9 @@ ObDragTarget<String>(keyRef: keys.key('dst_10'), canAccept: ..., onAccept: ..., 
 
 // Langkah berbasis ID via helper
 final steps = [
-  tapStepById(id: 'welcome', targetId: 'btn_start', title: 'Mulai', description: 'Tap untuk mulai'),
-  dragStepById(id: 'drag_4_to_10', sourceId: 'src_4', destinationId: 'dst_10', title: 'Seret', description: 'Seret ke tujuan'),
+  tapStepById(id: 'welcome', targetId: 'btn_start', description: 'Tap untuk mulai'),
+  dragStepById(id: 'drag_4_to_10', sourceId: 'src_4', destinationId: 'dst_10', description: 'Seret ke tujuan'),
+  // (Opsional) tambahkan title: '...' bila ingin baris judul terpisah di tooltip
 ];
 ```
 
@@ -255,17 +268,16 @@ DragTarget<String>(
 
 ```dart
 final steps = [
+  // Title is optional; header uses description-first by default
   tapStep(
     id: 'welcome',
     targetKey: btnKey,
-    title: 'Start',
     description: 'Tap this button to get started.',
   ),
   dragStep(
     id: 'drag_4_to_10',
     sourceKey: sourceKey,
     destinationKey: destKey,
-    title: 'Drag Number',
     description: 'Drag the number from source to the destination circle.',
   ),
 ];
@@ -279,12 +291,14 @@ final controller = ob(
   overlayColor: Colors.black,
   overlayOpacity: 0.7,
   targetPadding: 8,
-  tooltip: const TooltipConfig(
-    backgroundColor: Color(0xFF6750A4),
-    textColor: Colors.white,
-    maxWidth: 320,
-    padding: EdgeInsets.all(16),
-  ),
+  // You can override header style if desired:
+  // tooltip: const TooltipConfig(
+  //   headerPadding: EdgeInsets.all(15),
+  //   headerOuterMargin: EdgeInsets.symmetric(horizontal: 12),
+  //   headerFontSize: 18,
+  //   headerBackgroundColor: Color(0xFFB5F5C9),
+  //   headerTextColor: Color(0xFF0D1B2A),
+  // ),
 );
 ```
 
@@ -318,8 +332,21 @@ Customization
 
 - TooltipPosition: top, bottom, left, right, auto
 - DragTooltipAnchor: auto, source, destination (drag defaults to destination)
-- TooltipConfig: colors, text, maxWidth, padding, margin, borderRadius, styles
+- TooltipConfig:
+  - backgroundColor, textColor, maxWidth, borderRadius, padding (for tooltip)
+  - headerAtTop (default: true)
+  - showBottomBar (default: true)
+  - headerPadding (default: EdgeInsets.all(15))
+  - headerOuterMargin (default: EdgeInsets.symmetric(horizontal: 12))
+  - headerMinHeight (default: 68), headerHeight (optional), headerWidth (optional)
+  - headerFontSize (for header main text)
+  - headerBackgroundColor, headerTextColor (header-only overrides)
 - targetPadding adjusts highlight padding
+
+Visuals
+
+- Drag corridor is a smooth capsule with border and tint (no halos, no arrow)
+- Background interactions are blocked while onboarding is active
 
 Best Practices
 
@@ -351,8 +378,9 @@ ObDraggable<String>(keyRef: keys.key('src_4'), data: '4', child: ..., feedback: 
 ObDragTarget<String>(keyRef: keys.key('dst_10'), canAccept: ..., onAccept: ..., builder: ...);
 
 final steps = [
-  tapStepById(id: 'welcome', targetId: 'btn_start', title: 'Start', description: 'Tap to start'),
-  dragStepById(id: 'drag_4_to_10', sourceId: 'src_4', destinationId: 'dst_10', title: 'Drag', description: 'Drag from source to destination'),
+  tapStepById(id: 'welcome', targetId: 'btn_start', description: 'Tap to start'),
+  dragStepById(id: 'drag_4_to_10', sourceId: 'src_4', destinationId: 'dst_10', description: 'Drag from source to destination'),
+  // (Optional) add title: '...' to show a separate title line in the tooltip
 ];
 ```
 

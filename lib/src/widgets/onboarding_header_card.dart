@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class OnboardingHeaderCard extends StatelessWidget {
-  final String title;
+  final String? title;
   final String? description;
   final int stepNumber; // 1-based
   final int? totalSteps;
@@ -14,44 +14,55 @@ class OnboardingHeaderCard extends StatelessWidget {
   final Color borderColor;
   final Color textColor;
   final bool showGreenDot;
+  final double? fixedWidth;
+  final double? fixedHeight;
+  final double? mainFontSize;
 
   const OnboardingHeaderCard({
     Key? key,
-    required this.title,
+    this.title,
     this.description,
     required this.stepNumber,
     this.totalSteps,
-    this.borderRadius = 12,
-    this.margin = const EdgeInsets.symmetric(horizontal: 16),
-    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    this.backgroundColor = const Color(0xFFB8C9F5), // soft blue
-    this.borderColor = const Color(0xFF5C6FAE), // darker blue border
+    this.borderRadius = 10,
+    this.margin = const EdgeInsets.symmetric(horizontal: 10),
+    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    this.backgroundColor =
+        const Color(0xFFAEC6FF), // light blue like screenshot
+    this.borderColor = const Color(0xFF3E4D87), // deeper bluish border
     this.textColor = const Color(0xFF10213A),
     this.showGreenDot = true,
+    this.fixedWidth,
+    this.fixedHeight,
+    this.mainFontSize,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final hasTitle = (title ?? '').trim().isNotEmpty;
     final hasDescription =
         (description != null && description!.trim().isNotEmpty);
+    final String mainLineText =
+        hasTitle ? (title ?? '') : (description?.trim() ?? '');
+    final bool showDescriptionBelow = hasDescription && hasTitle;
 
-    return Container(
+    final card = Container(
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: borderColor.withOpacity(0.85), width: 2),
+        border: Border.all(color: borderColor.withOpacity(0.95), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
-        crossAxisAlignment: hasDescription
+        crossAxisAlignment: showDescriptionBelow
             ? CrossAxisAlignment.start
             : CrossAxisAlignment.center,
         children: [
@@ -63,27 +74,25 @@ class OnboardingHeaderCard extends StatelessWidget {
               children: [
                 // "2. Play, Learn and Earn Coins"
                 Text(
-                  '${stepNumber.toString()}. $title',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  '${stepNumber.toString()}. $mainLineText',
+                  // Bold, size 16 seperti contoh
                   style: TextStyle(
                     color: textColor,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    height: 1.15,
+                    fontWeight: FontWeight.w700,
+                    fontSize: mainFontSize ?? 16,
+                    height: 1.2,
                   ),
                 ),
-                if (hasDescription) ...[
+                if (showDescriptionBelow) ...[
                   const SizedBox(height: 4),
                   Text(
                     description!,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                    // Perbesar deskripsi dan biarkan membungkus tanpa elipsis
                     style: TextStyle(
                       color: textColor.withOpacity(0.9),
-                      fontSize: 13,
-                      height: 1.2,
-                      fontWeight: FontWeight.w400,
+                      fontSize: 14.5,
+                      height: 1.25,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -99,12 +108,21 @@ class OnboardingHeaderCard extends StatelessWidget {
               height: 10,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFF7CF6B1), // hijau muda
+                color: Color(0xFF8EF2BE), // minty green like screenshot
               ),
             ),
           ],
         ],
       ),
     );
+
+    if (fixedWidth != null || fixedHeight != null) {
+      return SizedBox(
+        width: fixedWidth,
+        height: fixedHeight,
+        child: card,
+      );
+    }
+    return card;
   }
 }

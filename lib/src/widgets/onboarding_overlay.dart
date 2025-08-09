@@ -167,7 +167,11 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
       color: Colors.transparent,
       child: Stack(
         children: [
-          widget.child,
+          // Disable all underlying interactions while onboarding is visible
+          AbsorbPointer(
+            absorbing: widget.controller.isVisible,
+            child: widget.child,
+          ),
 
           // Visual overlay - show immediately when controller is visible
           if (widget.controller.isVisible)
@@ -175,7 +179,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               child: _buildVisualOverlay(),
             ),
 
-          // Interaction layer - handles gestures but is transparent
+          // Interaction layer - handles ONLY the active step's gestures
           if (widget.controller.isVisible) _buildInteractionLayer(),
 
           if (widget.controller.isVisible &&
@@ -580,20 +584,41 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
 
     final int stepNumber = widget.controller.currentStepIndex + 1;
 
+    final cfg = widget.controller.config.tooltipConfig;
+    final double? headerWidth = cfg.headerWidth;
+    final double? headerHeight = cfg.headerHeight;
+    final double minHeight = cfg.headerMinHeight;
+
     return Positioned(
       top: top,
       left: 0,
       right: 0,
       child: Align(
         alignment: Alignment.topCenter,
-        child: OnboardingHeaderCard(
-          title: step.title,
-          description: step.description, // boleh kosong
-          stepNumber: stepNumber,
-          totalSteps: widget.controller.config.steps.length,
-          // jika ingin pakai warna dari config, bisa di-override di sini
-          // backgroundColor: cfg.backgroundColor,
-          // textColor: cfg.textColor ?? Colors.black,
+        child: Padding(
+          padding: cfg.headerOuterMargin,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: minHeight,
+              maxWidth: cfg.headerMaxWidth ?? MediaQuery.of(context).size.width,
+            ),
+            child: SizedBox(
+              width: headerWidth,
+              height: headerHeight,
+              child: OnboardingHeaderCard(
+                title: step.title,
+                description: step.description,
+                stepNumber: stepNumber,
+                totalSteps: widget.controller.config.steps.length,
+                backgroundColor:
+                    cfg.headerBackgroundColor ?? const Color(0xFFAEC6FF),
+                textColor: cfg.headerTextColor ?? const Color(0xFF10213A),
+                mainFontSize: cfg.headerFontSize,
+                padding: cfg.headerPadding,
+                margin: EdgeInsets.zero,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -1304,32 +1329,7 @@ class CleanCorridorPainter extends CustomPainter {
       ..addOval(Rect.fromCircle(
           center: destCenter, radius: destRadius + bubbleExtra));
 
-    final corridorPath = Path.combine(
-      PathOperation.union,
-      Path.combine(PathOperation.union, rectPath, sourceBubble),
-      destBubble,
-    );
-
-    final fullScreenPath = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    final overlayPath = Path.combine(
-      PathOperation.difference,
-      fullScreenPath,
-      corridorPath,
-    );
-
-    final overlayPaint = Paint()
-      ..color = overlayColor
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(overlayPath, overlayPaint);
-
-    final fillPaint = Paint()
-      ..color = borderColor.withOpacity(0.18)
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(corridorPath, fillPaint);
-
+    // Build capsule before cutting overlay so we can clear the rounded ends too
     final startCap = Path()
       ..addOval(Rect.fromCircle(center: startPoint, radius: halfWidth));
     final endCap = Path()
@@ -1341,6 +1341,35 @@ class CleanCorridorPainter extends CustomPainter {
       endCap,
     );
 
+    // Use capsule (rect + rounded caps) UNION bubbles to cut the overlay.
+    // This prevents any dark semi-circular rim near the source/destination.
+    final corridorClearPath = Path.combine(
+      PathOperation.union,
+      Path.combine(PathOperation.union, capsulePath, sourceBubble),
+      destBubble,
+    );
+
+    final fullScreenPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    final overlayPath = Path.combine(
+      PathOperation.difference,
+      fullScreenPath,
+      corridorClearPath,
+    );
+
+    final overlayPaint = Paint()
+      ..color = overlayColor
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(overlayPath, overlayPaint);
+
+    // Soft corridor tint only on the capsule (clean ends, no circular halos)
+    final fillPaint = Paint()
+      ..color = borderColor.withOpacity(0.18)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(capsulePath, fillPaint);
+
     final borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
@@ -1350,30 +1379,7 @@ class CleanCorridorPainter extends CustomPainter {
 
     canvas.drawPath(capsulePath, borderPaint);
 
-    final midPoint = Offset(
-      (sourceCenter.dx + destCenter.dx) / 2,
-      (sourceCenter.dy + destCenter.dy) / 2,
-    );
-
-    final arrowSize = 12.0;
-
-    final arrowPath = Path();
-    final arrowTip = midPoint + direction * arrowSize;
-    final arrowBack = midPoint - direction * (arrowSize * 0.6);
-    final arrowSide1 = arrowTip - direction.rotate(math.pi / 4) * arrowSize;
-    final arrowSide2 = arrowTip - direction.rotate(-math.pi / 4) * arrowSize;
-
-    arrowPath.moveTo(arrowTip.dx, arrowTip.dy);
-    arrowPath.lineTo(arrowSide1.dx, arrowSide1.dy);
-    arrowPath.lineTo(arrowBack.dx, arrowBack.dy);
-    arrowPath.lineTo(arrowSide2.dx, arrowSide2.dy);
-    arrowPath.close();
-
-    final arrowPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(arrowPath, arrowPaint);
+    // Clean capsule without directional arrow for a minimal look
   }
 
   @override
