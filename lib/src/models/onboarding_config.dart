@@ -10,6 +10,19 @@ class TooltipConfig {
   final EdgeInsets padding;
   final TextStyle? titleStyle;
   final TextStyle? descriptionStyle;
+  // NEW: Global header and bottom bar options
+  final bool
+      headerAtTop; // show a global header at top instead of near-target tooltip
+  final bool showBottomBar; // show Skip/Next bar at bottom edges
+  final EdgeInsets bottomBarPadding; // horizontal padding for bottom bar
+  final double? headerMaxWidth; // optional max width for header card
+  final EdgeInsets headerPadding; // header card padding
+  // NEW: Standardized header size & border styling
+  final double? headerWidth; // fixed width for uniform header size across steps
+  final double headerMinHeight; // minimum height for header card
+  final double? headerHeight; // fixed height for header card (overrides min)
+  final Color? headerBorderColor; // optional border color
+  final double headerBorderWidth; // border width
 
   const TooltipConfig({
     this.backgroundColor = const Color(0xFF333333),
@@ -20,6 +33,16 @@ class TooltipConfig {
     this.padding = const EdgeInsets.all(16.0),
     this.titleStyle,
     this.descriptionStyle,
+    this.headerAtTop = false,
+    this.showBottomBar = false,
+    this.bottomBarPadding = const EdgeInsets.fromLTRB(16, 0, 16, 16),
+    this.headerMaxWidth,
+    this.headerPadding = const EdgeInsets.all(16.0),
+    this.headerWidth,
+    this.headerMinHeight = 64.0,
+    this.headerHeight,
+    this.headerBorderColor,
+    this.headerBorderWidth = 1.5,
   });
 }
 

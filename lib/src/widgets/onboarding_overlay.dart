@@ -1,10 +1,15 @@
 import 'dart:math' as math;
+// HAPUS import 'dart:ui' karena blur dipindahkan/ tidak digunakan di file ini.
 
 import 'package:flutter/material.dart';
+import 'package:onboarding_lib/src/widgets/onboarding_nav_card.dart';
 import '../controllers/onboarding_controller.dart';
 import '../models/onboarding_step.dart';
 import 'onboarding_tooltip.dart';
 import 'positioned_hint_icon.dart';
+
+// BARU: header & nav bar terpisah
+import 'onboarding_header_card.dart';
 
 class OnboardingOverlay extends StatefulWidget {
   final OnboardingController controller;
@@ -145,7 +150,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                 widget.controller.currentStep.interactionType ==
                     InteractionType.dragDrop &&
                 widget.controller.currentStep.id == step.id) {
-              // Check if still on same step
               _dragAnimationController!.reset();
               _dragAnimationController!.forward();
             }
@@ -174,7 +178,19 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
           // Interaction layer - handles gestures but is transparent
           if (widget.controller.isVisible) _buildInteractionLayer(),
 
-          if (widget.controller.isVisible) _buildTooltip(),
+          if (widget.controller.isVisible &&
+              !widget.controller.config.tooltipConfig.headerAtTop)
+            _buildTooltip(),
+
+          // Global header at top (dipisah file)
+          if (widget.controller.isVisible &&
+              widget.controller.config.tooltipConfig.headerAtTop)
+            _buildGlobalHeader(),
+
+          // Bottom bar Back/Next (dipisah file)
+          if (widget.controller.isVisible &&
+              widget.controller.config.tooltipConfig.showBottomBar)
+            _buildBottomBar(),
 
           if (widget.controller.isVisible &&
               widget.controller.currentStep.interactionType ==
@@ -233,10 +249,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               child: Center(
                 child: step.customIconWidget != null
                     ? SizedBox(
-                        width: math.max(
-                            24.0,
-                            sourceSize.width *
-                                0.6), // Increased from 0.5 to 0.6 with minimum 24px
+                        width: math.max(24.0, sourceSize.width * 0.6),
                         height: math.max(24.0, sourceSize.height * 0.6),
                         child: step.customIconWidget,
                       )
@@ -256,10 +269,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                         : Icon(
                             step.hintIcon ?? Icons.touch_app,
                             color: step.hintIconColor ?? Colors.white,
-                            size: math.max(
-                                24.0,
-                                sourceSize.width *
-                                    0.6), // Increased from 0.5 to 0.6 with minimum 24px
+                            size: math.max(24.0, sourceSize.width * 0.6),
                           )),
               ),
             ),
@@ -269,7 +279,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     );
   }
 
-  // This is purely visual - no interaction
+  // Purely visual overlay
   Widget _buildVisualOverlay() {
     final config = widget.controller.config;
     final currentStep = widget.controller.currentStep;
@@ -288,11 +298,10 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               padding: config.targetPadding,
               overlayColor:
                   config.overlayColor.withOpacity(config.overlayOpacity),
-              corridorWidth: 60.0, // Reduced corridor width
-              borderColor: currentStep.hintIconColor ??
-                  Colors.amber, // Changed to amber for better visibility
-              borderWidth: 3.0, // Increased border width
-              cornerRadius: 20.0, // Rounded corners radius
+              corridorWidth: 84.0,
+              borderColor: currentStep.hintIconColor ?? Colors.amber,
+              borderWidth: 4.0,
+              cornerRadius: 20.0,
             ),
           );
         },
@@ -300,7 +309,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     );
   }
 
-  // This layer handles all interactions
+  // Interaction layer
   Widget _buildInteractionLayer() {
     final currentStep = widget.controller.currentStep;
 
@@ -316,7 +325,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     return const SizedBox();
   }
 
-  // Handles drag and drop interaction
+  // Drag & drop interaction
   Widget _buildDragDropInteraction(OnboardingStep step) {
     if (step.targetKey.currentContext == null ||
         step.destinationKey?.currentContext == null) {
@@ -334,19 +343,17 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     final destPos = destBox.localToGlobal(Offset.zero);
     final destSize = destBox.size;
 
-    // Create a screen-sized widget to intercept all gestures
     return Positioned.fill(
       child: Stack(
         children: [
-          // Source element hit area
+          // Source hit area
           Positioned(
             left: sourcePos.dx,
             top: sourcePos.dy,
             width: sourceSize.width,
             height: sourceSize.height,
             child: GestureDetector(
-              behavior: HitTestBehavior
-                  .opaque, // This is crucial for capturing gestures
+              behavior: HitTestBehavior.opaque,
               onPanStart: (details) {
                 setState(() {
                   _dragOffset = details.globalPosition;
@@ -365,26 +372,22 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               },
               onPanEnd: (details) {
                 if (_isUserDragging) {
-                  // Check if dragged element is over the destination
                   final Rect destRect = Rect.fromLTWH(
                     destPos.dx,
                     destPos.dy,
                     destSize.width,
                     destSize.height,
-                  ).inflate(20); // Add padding for easier drop
+                  ).inflate(20);
 
                   final bool success;
                   if (_dragOffset != null && destRect.contains(_dragOffset!)) {
-                    // Successfully dragged to destination
                     success = true;
-                    // Clean up drag state immediately
                     setState(() {
                       _dragOffset = null;
                       _isUserDragging = false;
                       _dragAnimationController?.stop();
                       _dragAnimationController?.reset();
                     });
-                    // Go to the next step after successful drag
                     Future.delayed(const Duration(milliseconds: 300), () {
                       widget.controller.nextStep();
                     });
@@ -392,7 +395,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                     success = widget.controller
                         .completeDrag(_dragOffset ?? Offset.zero);
 
-                    // Clean up drag state regardless of success
                     setState(() {
                       _dragOffset = null;
                       _isUserDragging = false;
@@ -413,7 +415,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               child: Container(
                 color: Colors.transparent,
                 child: Center(
-                  // Only show the static hint icon when not animating and not dragging
                   child: (() {
                     final bool showSourceHintIcon = !_isUserDragging &&
                         (_dragAnimationController == null ||
@@ -424,9 +425,9 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                           step.hintIcon ?? Icons.touch_app,
                           color: step.hintIconColor ?? Colors.white,
                           size: math.max(
-                              32.0,
-                              math.min(sourceSize.width, sourceSize.height) *
-                                  0.7), // Increased from 0.5 to 0.7 with minimum 32px
+                            32.0,
+                            math.min(sourceSize.width, sourceSize.height) * 0.7,
+                          ),
                         );
                   })(),
                 ),
@@ -434,7 +435,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             ),
           ),
 
-          // Destination element indicator
+          // Destination indicator
           Positioned(
             left: destPos.dx,
             top: destPos.dy,
@@ -447,32 +448,11 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                   Icons.add_circle_outline,
                   color: step.hintIconColor ?? Colors.white,
                   size: math.max(
-                      28.0,
-                      math.min(destSize.width, destSize.height) *
-                          0.6), // Increased from 0.5 to 0.6 with minimum 28px
+                    28.0,
+                    math.min(destSize.width, destSize.height) * 0.6,
+                  ),
                 ),
               ),
-            ),
-          ),
-
-          // Arrow indicator in the middle
-          Positioned(
-            left: (sourcePos.dx +
-                        sourceSize.width / 2 +
-                        destPos.dx +
-                        destSize.width / 2) /
-                    2 -
-                15,
-            top: (sourcePos.dy +
-                        sourceSize.height / 2 +
-                        destPos.dy +
-                        destSize.height / 2) /
-                    2 -
-                15,
-            child: Icon(
-              Icons.arrow_forward,
-              color: step.hintIconColor ?? Colors.white,
-              size: 30,
             ),
           ),
         ],
@@ -480,7 +460,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     );
   }
 
-  // Handles tap interaction
+  // Tap interaction
   Widget _buildTapInteraction(OnboardingStep step) {
     if (step.targetKey.currentContext == null) return const SizedBox();
 
@@ -507,9 +487,9 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               position: step.iconPosition,
               color: step.hintIconColor ?? Colors.white,
               size: math.max(
-                  40.0,
-                  math.min(size.width, size.height) *
-                      0.8), // Increased from 0.6 to 0.8 with minimum 40px
+                40.0,
+                math.min(size.width, size.height) * 0.8,
+              ),
               icon: step.hintIcon ?? Icons.touch_app,
               imagePath: step.hintImagePath,
               customWidget: step.customIconWidget,
@@ -522,7 +502,9 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
 
   Widget _buildTooltip() {
     final step = widget.controller.currentStep;
-    // Determine which element to anchor the tooltip to (for arrow/orientation)
+    if (widget.controller.config.tooltipConfig.headerAtTop) {
+      return const SizedBox.shrink();
+    }
     BuildContext? targetContext = step.targetKey.currentContext;
     if (step.interactionType == InteractionType.dragDrop &&
         step.dragTooltipAnchor == DragTooltipAnchor.destination &&
@@ -537,27 +519,21 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     final targetSize = box.size;
     final screenSize = MediaQuery.of(context).size;
 
-    // Calculate safe area to avoid notches and system UI
     final MediaQueryData mediaQuery = MediaQuery.of(context);
     final EdgeInsets safeArea = mediaQuery.padding;
     final double statusBarHeight = safeArea.top;
     final double bottomSafeArea = safeArea.bottom;
 
-    // Available space for tooltip
-    final double availableWidth =
-        screenSize.width - 32; // 16px margin on each side
+    final double availableWidth = screenSize.width - 32;
     final double availableHeight =
         screenSize.height - statusBarHeight - bottomSafeArea - 32;
 
-    // Calculate tooltip dimensions (estimate)
     final double estimatedTooltipWidth = math.min(
         widget.controller.config.tooltipConfig.maxWidth, availableWidth);
 
-    // Estimate tooltip height based on content (rough calculation)
     final double estimatedTooltipHeight =
         math.min(200.0, availableHeight * 0.4);
 
-    // Calculate optimal position
     final tooltipPosition = _calculateOptimalTooltipPosition(
       targetPosition: targetPosition,
       targetSize: targetSize,
@@ -596,6 +572,62 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     );
   }
 
+  // ============== DIGANTI: header dipindah ke widget terpisah ==============
+  Widget _buildGlobalHeader() {
+    final step = widget.controller.currentStep;
+    final mq = MediaQuery.of(context);
+    final top = mq.padding.top + 12;
+
+    final int stepNumber = widget.controller.currentStepIndex + 1;
+
+    return Positioned(
+      top: top,
+      left: 0,
+      right: 0,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: OnboardingHeaderCard(
+          title: step.title,
+          description: step.description, // boleh kosong
+          stepNumber: stepNumber,
+          totalSteps: widget.controller.config.steps.length,
+          // jika ingin pakai warna dari config, bisa di-override di sini
+          // backgroundColor: cfg.backgroundColor,
+          // textColor: cfg.textColor ?? Colors.black,
+        ),
+      ),
+    );
+  }
+
+  // ============== DIGANTI: bottom bar dipindah ke widget terpisah ==========
+  Widget _buildBottomBar() {
+    final cfg = widget.controller.config.tooltipConfig;
+    final mq = MediaQuery.of(context);
+    final bottom = mq.padding.bottom + cfg.bottomBarPadding.bottom;
+
+    final int current = widget.controller.currentStepIndex + 1;
+    final int total = widget.controller.config.steps.length;
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: bottom,
+      child: OnboardingNavBar(
+        currentStep: current,
+        totalSteps: total,
+        onNext: widget.controller.nextStep,
+        onSkip: widget.controller.skip,
+        onBack: widget.controller.previousStep,
+        useSkipOnFirst: true,
+        // Margin tambahan bisa disesuaikan dari config
+        margin: EdgeInsets.only(
+          left: cfg.bottomBarPadding.left + 16,
+          right: cfg.bottomBarPadding.right + 16,
+        ),
+      ),
+    );
+  }
+
   Offset _calculateOptimalTooltipPosition({
     required Offset targetPosition,
     required Size targetSize,
@@ -605,9 +637,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     required OnboardingStep step,
   }) {
     final double margin = 16.0;
-    final double spacing = 12.0; // Space between target and tooltip
+    final double spacing = 12.0;
 
-    // Allow dev to anchor tooltip near source or destination for drag & drop
     if (step.interactionType == InteractionType.dragDrop &&
         step.destinationKey?.currentContext != null &&
         step.targetKey.currentContext != null &&
@@ -630,13 +661,11 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
       }
     }
 
-    // Target center AFTER any anchor override
     final Offset targetCenter = Offset(
       targetPosition.dx + targetSize.width / 2,
       targetPosition.dy + targetSize.height / 2,
     );
 
-    // Available areas computed AFTER any anchor override
     final double leftSpace = targetPosition.dx - margin;
     final double rightSpace =
         screenSize.width - (targetPosition.dx + targetSize.width) - margin;
@@ -649,10 +678,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     double tooltipX = 0;
     double tooltipY = 0;
 
-    // Determine best position based on available space and step preference
     TooltipPosition preferredPosition = step.position;
 
-    // NEW: For drag & drop, allow dev to anchor tooltip near source or destination
     if (step.interactionType == InteractionType.dragDrop &&
         step.destinationKey?.currentContext != null &&
         step.targetKey.currentContext != null &&
@@ -666,7 +693,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
       final Offset dstPos = dstBox.localToGlobal(Offset.zero);
       final Size dstSize = dstBox.size;
 
-      // Override targetPosition/size based on anchor preference
       if (step.dragTooltipAnchor == DragTooltipAnchor.destination) {
         targetPosition = dstPos;
         targetSize = dstSize;
@@ -674,18 +700,8 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
         targetPosition = srcPos;
         targetSize = srcSize;
       }
-
-      // Recompute dependent values for anchored target
-      final Offset anchoredCenter = Offset(
-        targetPosition.dx + targetSize.width / 2,
-        targetPosition.dy + targetSize.height / 2,
-      );
-      // Replace local copies
-      // ignore: unused_local_variable
-      final _ = anchoredCenter; // keep analyzer happy for structure
     }
 
-    // Position based on determined optimal position
     switch (preferredPosition) {
       case TooltipPosition.bottom:
         tooltipY = targetPosition.dy + targetSize.height + spacing;
@@ -708,7 +724,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             tooltipSize.height, screenSize.height, safeArea, margin);
         break;
       case TooltipPosition.auto:
-        // Auto positioning - choose the best available space
         if (bottomSpace >= tooltipSize.height + spacing) {
           tooltipY = targetPosition.dy + targetSize.height + spacing;
           tooltipX = _calculateHorizontalPosition(
@@ -729,7 +744,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
         break;
     }
 
-    // Ensure tooltip stays within screen bounds with more robust clamping
     final double minX = margin;
     final double maxX = screenSize.width - tooltipSize.width - margin;
     final double minY = safeArea.top + margin;
@@ -739,7 +753,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     tooltipX = tooltipX.clamp(minX, maxX.isNaN ? minX : maxX);
     tooltipY = tooltipY.clamp(minY, maxY.isNaN ? minY : maxY);
 
-    // --- NEW (generic): Avoid covering the highlighted target ---
     final Rect targetRect = Rect.fromLTWH(
       targetPosition.dx,
       targetPosition.dy,
@@ -750,7 +763,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
         tooltipX, tooltipY, tooltipSize.width, tooltipSize.height);
 
     if (tooltipRect.overlaps(targetRect)) {
-      // Rank candidate positions by available space
       final candidates = <MapEntry<TooltipPosition, double>>[
         MapEntry(TooltipPosition.bottom, bottomSpace),
         MapEntry(TooltipPosition.top, topSpace),
@@ -766,28 +778,28 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             test = Offset(
               _calculateHorizontalPosition(
                   targetCenter.dx, tooltipSize.width, screenSize.width, margin),
-              targetPosition.dy + targetSize.height + spacing,
+              targetPosition.dy + targetSize.height + 12,
             );
             break;
           case TooltipPosition.top:
             test = Offset(
               _calculateHorizontalPosition(
                   targetCenter.dx, tooltipSize.width, screenSize.width, margin),
-              targetPosition.dy - tooltipSize.height - spacing,
+              targetPosition.dy - tooltipSize.height - 12,
             );
             break;
           case TooltipPosition.right:
             test = Offset(
-              targetPosition.dx + targetSize.width + spacing,
+              targetPosition.dx + targetSize.width + 12,
               _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
-                  screenSize.height, safeArea, margin),
+                  screenSize.height, EdgeInsets.zero, margin),
             );
             break;
           case TooltipPosition.left:
             test = Offset(
-              targetPosition.dx - tooltipSize.width - spacing,
+              targetPosition.dx - tooltipSize.width - 12,
               _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
-                  screenSize.height, safeArea, margin),
+                  screenSize.height, EdgeInsets.zero, margin),
             );
             break;
           case TooltipPosition.auto:
@@ -805,14 +817,12 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
         }
       }
 
-      // Resolve final position; if no better candidate, keep current
       if (nonOverlap != null) {
         tooltipX = nonOverlap.dx;
         tooltipY = nonOverlap.dy;
       }
     }
 
-    // --- NEW: Avoid covering the highlight/corridor on drag & drop ---
     if (step.interactionType == InteractionType.dragDrop &&
         step.destinationKey?.currentContext != null &&
         step.targetKey.currentContext != null) {
@@ -831,13 +841,10 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
       final Offset dstCenter =
           Offset(dstPos.dx + dstSize.width / 2, dstPos.dy + dstSize.height / 2);
 
-      // Corridor as a bounding box around the center line between src & dst
       final Rect lineBounds = Rect.fromPoints(srcCenter, dstCenter);
-      // Make corridor avoidance thicker so tooltip keeps a safe distance
-      final double corridorThickness = 120.0; // px (increased)
+      final double corridorThickness = 120.0;
       final Rect corridorRect = lineBounds.inflate(corridorThickness / 2);
 
-      // Also avoid overlapping exact source & destination targets
       final Rect srcRect =
           Rect.fromLTWH(srcPos.dx, srcPos.dy, srcSize.width, srcSize.height)
               .inflate(8);
@@ -845,7 +852,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
           Rect.fromLTWH(dstPos.dx, dstPos.dy, dstSize.width, dstSize.height)
               .inflate(8);
 
-      // Inflate tooltip rect a bit to account for arrow and layout diffs
       Rect currentTooltipRect = Rect.fromLTWH(
               tooltipX, tooltipY, tooltipSize.width, tooltipSize.height)
           .inflate(12);
@@ -854,29 +860,22 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
           currentTooltipRect.overlaps(srcRect) ||
           currentTooltipRect.overlaps(dstRect);
 
-      // If anchored to destination and tooltip sits completely above destination,
-      // allow it even if it intersects the corridor rectangle (to honor UX request)
       final bool anchoredToDestination =
           step.dragTooltipAnchor == DragTooltipAnchor.destination;
-      final bool tooltipAboveDest =
-          currentTooltipRect.bottom <= dstPos.dy - 4; // small gap
+      final bool tooltipAboveDest = currentTooltipRect.bottom <= dstPos.dy - 4;
       if (anchoredToDestination && tooltipAboveDest) {
-        // Ignore corridor overlap in this case
         overlaps = currentTooltipRect.overlaps(srcRect) ||
             currentTooltipRect.overlaps(dstRect);
       }
 
       if (overlaps) {
-        // Try alternative positions that do not intersect the drag path or nodes
         List<TooltipPosition> candidates = [
-          // Prefer TOP first to keep tooltip above destination
           TooltipPosition.top,
           TooltipPosition.bottom,
           TooltipPosition.left,
           TooltipPosition.right,
         ];
 
-        // Prefer placing perpendicular to the drag direction
         final bool isMostlyHorizontal = (dstCenter.dx - srcCenter.dx).abs() >=
             (dstCenter.dy - srcCenter.dy).abs();
         if (isMostlyHorizontal) {
@@ -888,7 +887,6 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
           ];
         } else {
           candidates = [
-            // Still prefer left/right for vertical drags, but keep top after
             TooltipPosition.left,
             TooltipPosition.right,
             TooltipPosition.top,
@@ -897,21 +895,21 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
         }
 
         Offset? nonOverlap;
-        final double extraSpacing = spacing + 12; // push a bit further away
+        final double extraSpacing = 24;
         for (final candidate in candidates) {
           Offset test;
           switch (candidate) {
             case TooltipPosition.top:
               test = Offset(
-                _calculateHorizontalPosition(targetCenter.dx, tooltipSize.width,
-                    screenSize.width, margin),
+                _calculateHorizontalPosition(
+                    targetCenter.dx, tooltipSize.width, screenSize.width, 16),
                 targetPosition.dy - tooltipSize.height - extraSpacing,
               );
               break;
             case TooltipPosition.bottom:
               test = Offset(
-                _calculateHorizontalPosition(targetCenter.dx, tooltipSize.width,
-                    screenSize.width, margin),
+                _calculateHorizontalPosition(
+                    targetCenter.dx, tooltipSize.width, screenSize.width, 16),
                 targetPosition.dy + targetSize.height + extraSpacing,
               );
               break;
@@ -919,14 +917,14 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               test = Offset(
                 targetPosition.dx - tooltipSize.width - extraSpacing,
                 _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
-                    screenSize.height, safeArea, margin),
+                    screenSize.height, EdgeInsets.zero, 16),
               );
               break;
             case TooltipPosition.right:
               test = Offset(
                 targetPosition.dx + targetSize.width + extraSpacing,
                 _calculateVerticalPosition(targetCenter.dy, tooltipSize.height,
-                    screenSize.height, safeArea, margin),
+                    screenSize.height, EdgeInsets.zero, 16),
               );
               break;
             case TooltipPosition.auto:
@@ -934,16 +932,20 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
               break;
           }
 
-          // Clamp and re-check
-          final double cx = test.dx.clamp(minX, maxX.isNaN ? minX : maxX);
-          final double cy = test.dy.clamp(minY, maxY.isNaN ? minY : maxY);
+          final double cx =
+              test.dx.clamp(16, screenSize.width - tooltipSize.width - 16);
+          final double cy = test.dy.clamp(
+              16 + MediaQuery.of(context).padding.top,
+              screenSize.height -
+                  MediaQuery.of(context).padding.bottom -
+                  tooltipSize.height -
+                  16);
           final Rect testRect =
               Rect.fromLTWH(cx, cy, tooltipSize.width, tooltipSize.height)
                   .inflate(12);
           bool candidateOverlaps = testRect.overlaps(corridorRect);
           if (anchoredToDestination &&
               (cy + tooltipSize.height) <= dstPos.dy - 4) {
-            // If candidate is above destination, ignore corridor overlap
             candidateOverlaps = false;
           }
 
@@ -955,44 +957,65 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
           }
         }
 
-        // If nothing works, push the tooltip away from corridor along the
-        // perpendicular direction by a small offset
         if (nonOverlap == null) {
-          final double push = corridorThickness + 24; // stronger push
+          final double push = corridorThickness + 24;
           if (isMostlyHorizontal) {
-            // Push above or below depending on available space
-            final tryUp = (targetPosition.dy - safeArea.top) >
+            final tryUp = (targetPosition.dy -
+                    MediaQuery.of(context).padding.top) >
                 (screenSize.height - (targetPosition.dy + targetSize.height));
             final double proposedY = tryUp
                 ? (targetPosition.dy - tooltipSize.height - extraSpacing - push)
                 : (targetPosition.dy + targetSize.height + extraSpacing + push);
-            final double cy = proposedY.clamp(minY, maxY.isNaN ? minY : maxY);
-            final double cx = _calculateHorizontalPosition(targetCenter.dx,
-                    tooltipSize.width, screenSize.width, margin)
-                .clamp(minX, maxX.isNaN ? minX : maxX);
+            final double cy = proposedY.clamp(
+              16 + MediaQuery.of(context).padding.top,
+              screenSize.height -
+                  MediaQuery.of(context).padding.bottom -
+                  tooltipSize.height -
+                  16,
+            );
+            final double cx = _calculateHorizontalPosition(
+                    targetCenter.dx, tooltipSize.width, screenSize.width, 16)
+                .clamp(16.0, screenSize.width - tooltipSize.width - 16.0);
             nonOverlap = Offset(cx, cy);
           } else {
-            // Push left or right
             final tryLeft = targetPosition.dx >
                 (screenSize.width - (targetPosition.dx + targetSize.width));
             final double proposedX = tryLeft
                 ? (targetPosition.dx - tooltipSize.width - extraSpacing - push)
                 : (targetPosition.dx + targetSize.width + extraSpacing + push);
-            final double cx = proposedX.clamp(minX, maxX.isNaN ? minX : maxX);
-            final double cy = _calculateVerticalPosition(targetCenter.dy,
-                    tooltipSize.height, screenSize.height, safeArea, margin)
-                .clamp(minY, maxY.isNaN ? minY : maxY);
+            final double cx = proposedX.clamp(
+              16,
+              screenSize.width - tooltipSize.width - 16,
+            );
+            final double cy = _calculateVerticalPosition(
+                    targetCenter.dy,
+                    tooltipSize.height,
+                    screenSize.height,
+                    MediaQuery.of(context).padding,
+                    16)
+                .clamp(
+              16 + MediaQuery.of(context).padding.top,
+              screenSize.height -
+                  MediaQuery.of(context).padding.bottom -
+                  tooltipSize.height -
+                  16,
+            );
             nonOverlap = Offset(cx, cy);
           }
         }
 
-        // After trying candidates and fallback, nonOverlap must be set
         tooltipX = nonOverlap.dx;
         tooltipY = nonOverlap.dy;
 
-        // Final safety: clamp again
-        tooltipX = tooltipX.clamp(minX, maxX.isNaN ? minX : maxX);
-        tooltipY = tooltipY.clamp(minY, maxY.isNaN ? minY : maxY);
+        tooltipX =
+            tooltipX.clamp(16, screenSize.width - tooltipSize.width - 16);
+        tooltipY = tooltipY.clamp(
+          16 + MediaQuery.of(context).padding.top,
+          screenSize.height -
+              MediaQuery.of(context).padding.bottom -
+              tooltipSize.height -
+              16,
+        );
       }
     }
 
@@ -1001,28 +1024,20 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
 
   double _calculateHorizontalPosition(double targetCenterX, double tooltipWidth,
       double screenWidth, double margin) {
-    // Try to center on target
     double x = targetCenterX - (tooltipWidth / 2);
-
-    // Adjust if goes outside screen bounds
     if (x < margin) {
       x = margin;
     } else if (x + tooltipWidth > screenWidth - margin) {
       x = screenWidth - tooltipWidth - margin;
     }
-
     return x;
   }
 
   double _calculateVerticalPosition(double targetCenterY, double tooltipHeight,
       double screenHeight, EdgeInsets safeArea, double margin) {
-    // Try to center on target
     double y = targetCenterY - (tooltipHeight / 2);
-
-    // Adjust if goes outside screen bounds
     final double minY = safeArea.top + margin;
     final double maxY = screenHeight - safeArea.bottom - tooltipHeight - margin;
-
     return y.clamp(minY, maxY);
   }
 
@@ -1031,8 +1046,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
     required Offset tooltipPosition,
     required Size screenSize,
   }) {
-    // Determine relative position of tooltip to target
-    final double tolerance = 20.0; // Tolerance for position determination
+    final double tolerance = 20.0;
 
     if (tooltipPosition.dy > targetPosition.dy + tolerance) {
       return TooltipPosition.bottom;
@@ -1079,10 +1093,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
             child: Center(
               child: step.customIconWidget != null
                   ? SizedBox(
-                      width: math.max(
-                          24.0,
-                          targetSize.width *
-                              0.6), // Increased from 0.5 to 0.6 with minimum 24px
+                      width: math.max(24.0, targetSize.width * 0.6),
                       height: math.max(24.0, targetSize.height * 0.6),
                       child: step.customIconWidget,
                     )
@@ -1102,10 +1113,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay>
                       : Icon(
                           step.hintIcon ?? Icons.touch_app,
                           color: step.hintIconColor ?? Colors.white,
-                          size: math.max(
-                              24.0,
-                              targetSize.width *
-                                  0.6), // Increased from 0.5 to 0.6 with minimum 24px
+                          size: math.max(24.0, targetSize.width * 0.6),
                         )),
             ),
           ),
@@ -1138,21 +1146,17 @@ class CleanCorridorPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Early return if size is invalid
     if (size.width <= 0 || size.height <= 0) return;
 
-    // For single target (tap interaction)
     if (destinationKey == null) {
       _paintSingleTarget(canvas, size);
       return;
     }
 
-    // For drag-drop corridor
     _paintDragPathCorridor(canvas, size);
   }
 
   void _paintSingleTarget(Canvas canvas, Size size) {
-    // Get the source target box with additional null checks
     final context = sourceKey.currentContext;
     if (context == null) return;
 
@@ -1172,7 +1176,6 @@ class CleanCorridorPainter extends CustomPainter {
       sourceBox.size.height + (padding * 2),
     );
 
-    // Ensure the source rect is within screen bounds
     final screenRect = Rect.fromLTWH(0, 0, size.width, size.height);
     final clampedSourceRect = Rect.fromLTWH(
       sourceRect.left.clamp(0, size.width),
@@ -1183,31 +1186,26 @@ class CleanCorridorPainter extends CustomPainter {
           .clamp(0, size.height - sourceRect.top.clamp(0, size.height)),
     );
 
-    // Create a rounded rect path for the target
     final targetPath = Path()
       ..addRRect(RRect.fromRectAndRadius(
         clampedSourceRect,
         Radius.circular(cornerRadius),
       ));
 
-    // Create a full screen path
     final fullScreenPath = Path()..addRect(screenRect);
 
-    // Create a path that represents the darkened overlay area
     final overlayPath = Path.combine(
       PathOperation.difference,
       fullScreenPath,
       targetPath,
     );
 
-    // Draw the darkened overlay
     final overlayPaint = Paint()
       ..color = overlayColor
       ..style = PaintingStyle.fill;
 
     canvas.drawPath(overlayPath, overlayPaint);
 
-    // Draw border around the target
     final borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
@@ -1220,7 +1218,6 @@ class CleanCorridorPainter extends CustomPainter {
   }
 
   void _paintDragPathCorridor(Canvas canvas, Size size) {
-    // Get source and destination boxes with better null checks
     final sourceContext = sourceKey.currentContext;
     final destContext = destinationKey?.currentContext;
 
@@ -1250,7 +1247,6 @@ class CleanCorridorPainter extends CustomPainter {
     final destPos = destBox.localToGlobal(Offset.zero);
     final destSize = destBox.size;
 
-    // Calculate centers
     final sourceCenter = Offset(
       sourcePos.dx + sourceSize.width / 2,
       sourcePos.dy + sourceSize.height / 2,
@@ -1261,88 +1257,90 @@ class CleanCorridorPainter extends CustomPainter {
       destPos.dy + destSize.height / 2,
     );
 
-    // Calculate angle between centers
     final angle = math.atan2(
       destCenter.dy - sourceCenter.dy,
       destCenter.dx - sourceCenter.dx,
     );
 
-    // Create direction vector and perpendicular vector
     final direction = Offset(math.cos(angle), math.sin(angle));
     final perpendicular = Offset(-direction.dy, direction.dx);
 
-    // Calculate elements corner points to create a thin corridor
-    final elementRadius = math.min(
-        30.0,
-        math.min(
-              math.min(sourceSize.width, sourceSize.height),
-              math.min(destSize.width, destSize.height),
-            ) /
-            2);
+    final double sourceRadius =
+        math.min(sourceSize.width, sourceSize.height) / 2;
+    final double destRadius = math.min(destSize.width, destSize.height) / 2;
+    const double bubbleExtra = 6.0;
 
-    // Calculate narrower corridor width - just enough to include the elements
-    final pathWidth = math.max(
-        elementRadius * 2, corridorWidth / 2 // Make the corridor much narrower
-        );
+    final halfWidth = (corridorWidth / 2);
 
-    // Create a path that follows from source to destination with minimal width
-    final halfWidth = pathWidth / 2; // Half width for the corridor
+    final double sR = sourceRadius + bubbleExtra;
+    final double dR = destRadius + bubbleExtra;
+    double _tangentDist(double r, double hw) {
+      final double v = r * r - hw * hw;
+      return v <= 0 ? 0.0 : math.sqrt(v);
+    }
 
-    // Find the source element's edge point in the direction of dest
-    final sourceEdgeOffset =
-        direction * (elementRadius + 5); // Add small padding
-    final destEdgeOffset = direction * (elementRadius + 5);
+    final double startOffset = _tangentDist(sR, halfWidth);
+    final double endOffset = _tangentDist(dR, halfWidth);
 
-    // Calculate four corners of the corridor - using the edge points of elements
-    final p1 = sourceCenter + perpendicular * halfWidth - sourceEdgeOffset;
-    final p2 = destCenter + perpendicular * halfWidth + destEdgeOffset;
-    final p3 = destCenter - perpendicular * halfWidth + destEdgeOffset;
-    final p4 = sourceCenter - perpendicular * halfWidth - sourceEdgeOffset;
+    final startPoint = sourceCenter + direction * startOffset;
+    final endPoint = destCenter - direction * endOffset;
 
-    // Create path
-    final path = Path();
-    path.moveTo(p1.dx, p1.dy);
-    path.lineTo(p2.dx, p2.dy);
-    path.lineTo(p3.dx, p3.dy);
-    path.lineTo(p4.dx, p4.dy);
-    path.close();
+    final p1 = startPoint + perpendicular * halfWidth;
+    final p2 = endPoint + perpendicular * halfWidth;
+    final p3 = endPoint - perpendicular * halfWidth;
+    final p4 = startPoint - perpendicular * halfWidth;
 
-    // Create a path that includes both elements to ensure they're visible
-    final sourceRect =
-        Rect.fromCircle(center: sourceCenter, radius: elementRadius + 5);
-    final destRect =
-        Rect.fromCircle(center: destCenter, radius: elementRadius + 5);
+    final rectPath = Path()
+      ..moveTo(p1.dx, p1.dy)
+      ..lineTo(p2.dx, p2.dy)
+      ..lineTo(p3.dx, p3.dy)
+      ..lineTo(p4.dx, p4.dy)
+      ..close();
 
-    final sourcePath = Path()..addOval(sourceRect);
+    final sourceBubble = Path()
+      ..addOval(Rect.fromCircle(
+          center: sourceCenter, radius: sourceRadius + bubbleExtra));
+    final destBubble = Path()
+      ..addOval(Rect.fromCircle(
+          center: destCenter, radius: destRadius + bubbleExtra));
 
-    final destPath = Path()..addOval(destRect);
-
-    // Combine the paths
     final corridorPath = Path.combine(
       PathOperation.union,
-      Path.combine(PathOperation.union, path, sourcePath),
-      destPath,
+      Path.combine(PathOperation.union, rectPath, sourceBubble),
+      destBubble,
     );
 
-    // Create a full screen path
     final fullScreenPath = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Create a path that represents the darkened overlay area
     final overlayPath = Path.combine(
       PathOperation.difference,
       fullScreenPath,
       corridorPath,
     );
 
-    // Draw the darkened overlay
     final overlayPaint = Paint()
       ..color = overlayColor
       ..style = PaintingStyle.fill;
 
     canvas.drawPath(overlayPath, overlayPaint);
 
-    // Draw corridor border
+    final fillPaint = Paint()
+      ..color = borderColor.withOpacity(0.18)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(corridorPath, fillPaint);
+
+    final startCap = Path()
+      ..addOval(Rect.fromCircle(center: startPoint, radius: halfWidth));
+    final endCap = Path()
+      ..addOval(Rect.fromCircle(center: endPoint, radius: halfWidth));
+
+    final capsulePath = Path.combine(
+      PathOperation.union,
+      Path.combine(PathOperation.union, rectPath, startCap),
+      endCap,
+    );
+
     final borderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
@@ -1350,9 +1348,8 @@ class CleanCorridorPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    canvas.drawPath(corridorPath, borderPaint);
+    canvas.drawPath(capsulePath, borderPaint);
 
-    // Add direction arrow
     final midPoint = Offset(
       (sourceCenter.dx + destCenter.dx) / 2,
       (sourceCenter.dy + destCenter.dy) / 2,
@@ -1360,10 +1357,9 @@ class CleanCorridorPainter extends CustomPainter {
 
     final arrowSize = 12.0;
 
-    // Draw arrow
     final arrowPath = Path();
     final arrowTip = midPoint + direction * arrowSize;
-    final arrowBack = midPoint - direction * (arrowSize * 0.5);
+    final arrowBack = midPoint - direction * (arrowSize * 0.6);
     final arrowSide1 = arrowTip - direction.rotate(math.pi / 4) * arrowSize;
     final arrowSide2 = arrowTip - direction.rotate(-math.pi / 4) * arrowSize;
 
@@ -1390,23 +1386,9 @@ class CleanCorridorPainter extends CustomPainter {
 }
 
 extension VectorUtils on Offset {
-  Offset normalized() {
-    final magnitude = distance;
-    if (magnitude == 0) return Offset.zero;
-    return this / magnitude;
-  }
-
   Offset rotate(double radians) {
     final cos = math.cos(radians);
     final sin = math.sin(radians);
     return Offset(dx * cos - dy * sin, dx * sin + dy * cos);
   }
-
-  operator /(double operand) => Offset(dx / operand, dy / operand);
-
-  operator *(double operand) => Offset(dx * operand, dy * operand);
-
-  operator -(Offset other) => Offset(dx - other.dx, dy - other.dy);
-
-  operator +(Offset other) => Offset(dx + other.dx, dy + other.dy);
 }

@@ -142,6 +142,8 @@ OnboardingController ob({
     textColor: Colors.white,
     maxWidth: 320,
     padding: EdgeInsets.all(16),
+    headerAtTop: true,
+    showBottomBar: true,
   ),
   VoidCallback? onComplete,
 }) {

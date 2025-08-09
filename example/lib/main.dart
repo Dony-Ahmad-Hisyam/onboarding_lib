@@ -40,54 +40,33 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    _homeOnboarding = OnboardingController(
-      config: OnboardingConfig(
-        steps: [
-          OnboardingStep(
-            id: 'open_math_game',
-            targetKey: _mathBtnKey,
-            title: 'Mulai dari sini',
-            description:
-                'Tap tombol ini untuk membuka Math Game. Onboarding akan memandu kamu di halaman berikutnya.',
-            interactionType: InteractionType.tap,
-            position: TooltipPosition.auto,
-            iconPosition: IconPosition.center,
-            hintIconColor: Color(0xFF6750A4),
-            hintIcon: Icons.touch_app,
-            onComplete: () {
-              // Navigasi ke halaman game ketika step selesai
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MathGameDemo()),
-              );
-            },
-          ),
-          OnboardingStep(
-            id: 'lihat_position_demo',
-            targetKey: _positionBtnKey,
-            title: 'Atau coba Position Demo',
-            description: 'Kamu juga bisa membuka demo posisi tooltip di sini.',
-            interactionType: InteractionType.tap,
-            position: TooltipPosition.auto,
-            iconPosition: IconPosition.center,
-            hintIconColor: Color(0xFF6750A4),
-            hintIcon: Icons.touch_app,
-            onComplete: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PositionDemo()),
-              );
-            },
-          ),
-        ],
-        // Samakan konfigurasi tooltip seperti di MathGameDemo
-        tooltipConfig: const TooltipConfig(
-          backgroundColor: Color(0xFF6750A4),
-          textColor: Colors.white,
-          maxWidth: 320,
-          padding: EdgeInsets.all(16),
-        ),
-        overlayOpacity: 0.7,
+    final steps = [
+      tapStep(
+        id: 'open_math_game',
+        targetKey: _mathBtnKey,
+        title: 'Mulai dari sini',
+        description:
+            'Tap tombol ini untuk membuka Math Game. Onboarding akan memandu kamu di halaman berikutnya.',
+        onComplete: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MathGameDemo()),
+          );
+        },
       ),
-    );
+      tapStep(
+        id: 'lihat_position_demo',
+        targetKey: _positionBtnKey,
+        title: 'Atau coba Position Demo',
+        description: 'Kamu juga bisa membuka demo posisi tooltip di sini.',
+        onComplete: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PositionDemo()),
+          );
+        },
+      ),
+    ];
+
+    _homeOnboarding = ob(steps: steps);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Mulai onboarding di halaman Home
@@ -103,46 +82,43 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return OnboardingOverlay(
-      controller: _homeOnboarding,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Game Onboarding Demo'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                height: 100,
-                width: 200,
-                color: Colors.green,
-                key: _mathBtnKey,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const MathGameDemo(),
-                      ),
-                    );
-                  },
-                  child: const Text('Math Game Demo'),
-                ),
-              ),
-              ElevatedButton(
-                key: _positionBtnKey,
+    final scaffold = Scaffold(
+      appBar: AppBar(
+        title: const Text('Game Onboarding Demo'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              height: 100,
+              width: 200,
+              color: Colors.green,
+              key: _mathBtnKey,
+              child: ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                        builder: (context) => const PositionDemo()),
+                      builder: (context) => const MathGameDemo(),
+                    ),
                   );
                 },
-                child: const Text('Position Demo'),
+                child: const Text('Math Game Demo'),
               ),
-            ],
-          ),
+            ),
+            ElevatedButton(
+              key: _positionBtnKey,
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const PositionDemo()),
+                );
+              },
+              child: const Text('Position Demo'),
+            ),
+          ],
         ),
       ),
     );
+    return scaffold.withOnboarding(_homeOnboarding);
   }
 }

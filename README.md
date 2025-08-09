@@ -7,10 +7,13 @@ Fitur Utama
 - Highlight langsung terlihat di langkah pertama
 - Tooltip cerdas: menghindari area highlight, koridor drag, dan node sumber/tujuan
 - Drag & drop generik (payload apa pun)
+- UI default sederhana: deskripsi statis di atas, tombol Skip/Next di bawah (aktif otomatis)
 - API ringkas: tapStep, dragStep, ob, withOnboarding
 - Best way sederhana: GlobalKey + Draggable/DragTarget (tanpa wrapper)
 - Alternatif opsional: ObDraggable/ObDragTarget dan binding via ID (tapStepById/dragStepById)
 - Kustomisasi penuh: warna overlay, padding target, gaya tooltip, dll.
+- Koridor drag berbentuk kapsul halus dengan border dan tint
+- Navigasi: langkah pertama menampilkan Skip (kiri), langkah berikutnya Back; tombol kanan Next berubah jadi Finish di langkah terakhir. Indikator progres hanya tampil di bawah Back/Next.
 
 Instalasi
 Tambahkan ke pubspec.yaml aplikasi Anda:
@@ -102,17 +105,13 @@ final steps = [
 4. Buat controller dengan ob(...)
 
 ```dart
+// ob() sekarang secara default menampilkan header di atas
+// dan bottom bar Skip/Next di bawah.
 final controller = ob(
   steps: steps,
   overlayColor: Colors.black,
   overlayOpacity: 0.7,
   targetPadding: 8,
-  tooltip: const TooltipConfig(
-    backgroundColor: Color(0xFF6750A4),
-    textColor: Colors.white,
-    maxWidth: 320,
-    padding: EdgeInsets.all(16),
-  ),
   onComplete: () {
     // selesai onboarding
   },
@@ -143,6 +142,12 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
 - Seret “3” → lingkaran kosong
 
 Buat tiga GlobalKey untuk sumber (4, 2, 3) dan tiga GlobalKey untuk tujuan (10, 7, empty), lalu tambahkan tiga dragStep sesuai pasangannya. Lihat `example/lib/match_game_demo.dart` untuk implementasi lengkap satu file.
+
+Navigasi (Bottom Bar)
+
+- Kiri: Step pertama = Skip, step selanjutnya = Back
+- Kanan: Next, dan otomatis berubah menjadi Finish di step terakhir
+- Progres (misal 2/5) hanya muncul di baris kedua tombol Back/Next; Skip/Finish tidak menampilkan progres
 
 Kustomisasi
 
@@ -302,6 +307,12 @@ WidgetsBinding.instance.addPostFrameCallback((_) => controller.start());
 - Drag “3” → empty circle
 
 Create GlobalKeys for each source/destination pair and add one dragStep per pair. See `example/lib/match_game_demo.dart` for a single-file implementation.
+
+Navigation (Bottom Bar)
+
+- Left: First step = Skip, then Back on subsequent steps
+- Right: Next, and automatically switches to Finish on the last step
+- Progress (e.g., 2/5) is only shown as a second line under Back/Next; Skip/Finish do not show progress
 
 Customization
 

@@ -14,7 +14,6 @@ class _MathGameDemoState extends State<MathGameDemo> {
   // Tap targets
   final GlobalKey _gameSelectionKey = GlobalKey(debugLabel: 'gameSelectionKey');
   final GlobalKey _mathProblemKey = GlobalKey(debugLabel: 'mathProblemKey');
-  final GlobalKey _onNextKey = GlobalKey(debugLabel: 'onNextKey');
 
   // Drag sources
   final GlobalKey _src3Key = GlobalKey(debugLabel: 'src_3');
@@ -41,6 +40,12 @@ class _MathGameDemoState extends State<MathGameDemo> {
         if (mounted) _onboardingController.start();
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _onboardingController.dispose();
+    super.dispose();
   }
 
   void _initOnboarding() {
@@ -84,14 +89,6 @@ class _MathGameDemoState extends State<MathGameDemo> {
         title: 'Drag the Number',
         description: 'Drag the correct number into the circle.',
       ),
-      tapStep(
-        id: 'on_next',
-        targetKey: _onNextKey,
-        title: 'Next Steps',
-        description:
-            'Tap on the "Next" button to move to the next math problem and continue your learning journey.',
-        position: TooltipPosition.top,
-      ),
     ];
 
     _onboardingController = ob(
@@ -102,12 +99,6 @@ class _MathGameDemoState extends State<MathGameDemo> {
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _onboardingController.dispose();
-    super.dispose();
   }
 
   @override
@@ -200,9 +191,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
           _buildMathProblem(),
           const Spacer(),
           _buildNumberOptions(),
-          const SizedBox(height: 16),
-          _buildGameButtons(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 26),
         ],
       ),
     );
@@ -284,7 +273,7 @@ class _MathGameDemoState extends State<MathGameDemo> {
                         hasValue ? _valueInEmpty! : '',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 24, 
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -360,15 +349,16 @@ class _MathGameDemoState extends State<MathGameDemo> {
             ),
           );
           final enabled = _valueInEmpty == null;
+          final circleWithKey = Container(key: _src3Key, child: circle);
           return enabled
               ? Draggable<String>(
-                  key: _src3Key,
                   data: number,
-                  child: circle,
-                  childWhenDragging: Opacity(opacity: 0.2, child: circle),
+                  child: circleWithKey,
+                  childWhenDragging:
+                      Opacity(opacity: 0.2, child: circleWithKey),
                   feedback: feedback,
                 )
-              : Opacity(opacity: 0.4, child: circle);
+              : Opacity(opacity: 0.4, child: circleWithKey);
         }),
         const SizedBox(width: 16),
         // Source 4
@@ -410,15 +400,16 @@ class _MathGameDemoState extends State<MathGameDemo> {
             ),
           );
           final enabled = _valueOnTen == null;
+          final circleWithKey = Container(key: _src4Key, child: circle);
           return enabled
               ? Draggable<String>(
-                  key: _src4Key,
                   data: number,
-                  child: circle,
-                  childWhenDragging: Opacity(opacity: 0.2, child: circle),
+                  child: circleWithKey,
+                  childWhenDragging:
+                      Opacity(opacity: 0.2, child: circleWithKey),
                   feedback: feedback,
                 )
-              : Opacity(opacity: 0.4, child: circle);
+              : Opacity(opacity: 0.4, child: circleWithKey);
         }),
         const SizedBox(width: 16),
         // Source 2
@@ -460,48 +451,18 @@ class _MathGameDemoState extends State<MathGameDemo> {
             ),
           );
           final enabled = _valueOnSeven == null;
+          final circleWithKey = Container(key: _src2Key, child: circle);
           return enabled
               ? Draggable<String>(
-                  key: _src2Key,
                   data: number,
-                  child: circle,
-                  childWhenDragging: Opacity(opacity: 0.2, child: circle),
+                  child: circleWithKey,
+                  childWhenDragging:
+                      Opacity(opacity: 0.2, child: circleWithKey),
                   feedback: feedback,
                 )
-              : Opacity(opacity: 0.4, child: circle);
+              : Opacity(opacity: 0.4, child: circleWithKey);
         }),
       ],
-    );
-  }
-
-  Widget _buildGameButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey.shade300,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: const Text('Back'),
-          ),
-          ElevatedButton(
-            key: _onNextKey,
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Moving to next question!')));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal.shade300,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: const Text('Next (3/5)'),
-          ),
-        ],
-      ),
     );
   }
 }

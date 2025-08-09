@@ -51,6 +51,16 @@ class OnboardingController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void previousStep() {
+    if (_currentStepIndex <= 0) {
+      // Atau bisa diabaikan; jika ingin, tetap tampil di step 0
+      return;
+    }
+    _currentStepIndex--;
+    currentStep.onShow?.call();
+    notifyListeners();
+  }
+
   void handleTap() {
     if (currentStep.interactionType == InteractionType.tap) {
       nextStep();
